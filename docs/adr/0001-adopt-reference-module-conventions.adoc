@@ -1,0 +1,49 @@
+# ADR-0001 — Adopt the Reservation System's module conventions by copy
+
+Status: Accepted · Date: 2026-10-28
+
+## Context
+
+Team Management is an independent product but an architectural sibling of the
+Reservation System (Spring Boot 4.1.1 + Spring Modulith 2.1.1 modular monolith,
+DDD + hexagonal modules, PostgreSQL, Flyway, Keycloak, Spock tests). Duplicating
+decisions would drift; a runtime shared library would couple the two release
+lifecycles (rejected in `docs/BOOTSTRAP-REPORT.md` §4).
+
+## Decision
+
+1. Adopt the Reservation System's ADR-0001 (hexagonal module layout: flat
+   package-private `domain/`, public interfaces only in `domain/port`, one
+   `XxxDomainConfig`, `adapter/api` as the single `@NamedInterface("api")`
+   export, adapters never call adapters, immutable `…Info`/`…DataValue`
+   snapshots, controllers drive domain ports, records in own top-level files).
+2. Adopt ADR-0002 semantics (feature domains resolve the current identity via
+   implicit "me" port variants; `identity` exports `CurrentAccountApi` +
+   `AccountDirectoryApi`).
+3. Adopt ADR-0003 (every record in its own top-level source file).
+4. Adopt ADR-0004 (domain events over Modulith: contracts in the shared kernel,
+   single platform seam in `shared/event`, payloads in the publishing-or-
+   reactive module's `adapter/api`, cycle-break rule, one logic-free
+   `adapter/listeners/` class per module, explicit actors, idempotent
+   reactions, JDBC registry with completion-mode DELETE + republish-on-restart).
+5. **Shared kernel: copy first, extract at the second consumer
+   (SUPERSEDED → EXTRACTED 2026-11-04)**: the shared kernel classes and test
+   infrastructure were initially copied (Customer → Account,
+   reservation-specific pieces pruned: Money, ReservationPeriod, the
+   booking-request external-provisioning workflow, reservation-specific error
+   codes). Once the identical seams lived in BOTH applications, the stable
+   parts were extracted to `com.decoupledx:decoupledx-common`
+   (auto-configuration, `@ConditionalOnMissingBean` everywhere; library
+   ADR-0001/0002). This application now consumes the library and keeps only
+   application-owned material: its `ErrorCode` enum (implements the library
+   contract), `SecurityConfig` (routing policy), and test infra
+   (`PostgresIntegrationSpec`, `JwtSupport`, `WebUserSupport`).
+6. Ubiquitous language: the identity concept is **Account** (authenticates),
+   not Customer. Domain models never leak Keycloak/JWT claim types.
+
+## Consequences
+
+- The two applications evolve independently; identical conventions are
+  maintained by review and by the spec-enforced architecture rules.
+- Shared-seam fixes are made once in `decoupledx-common` and adopted by both
+  applications deliberately (bump the dependency).

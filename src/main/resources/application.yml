@@ -1,0 +1,104 @@
+spring:
+  application:
+    name: team-management
+  modulith:
+    events:
+      # Event publication registry (starter-jdbc): rows persist inside the
+      # publishing transaction, listeners run after commit; failed/stale
+      # publications are visible for resubmission. Completed publications
+      # delete (no housekeeping cron needed at MVP scale).
+      completion-mode: DELETE
+      # Idempotent listeners make redelivery safe (e.g. after a crash).
+      republish-outstanding-events-on-restart: true
+  messages:
+    # Bundles live in src/main/resources/messages/ (basename "messages/messages").
+    # fallback-to-system-locale=false: a key missing from the requested locale's
+    # bundle falls back to messages.properties, not to the server OS language.
+    basename: messages/messages
+    fallback-to-system-locale: false
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/team_management}
+    username: ${DB_USERNAME:teammanagement}
+    password: ${DB_PASSWORD:teammanagement}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: ${KC_WEB_CLIENT_ID:team-management-web}
+            client-secret: ${KC_WEB_CLIENT_SECRET:dev-web-secret}
+            redirect-uri: ${KC_WEB_REDIRECT_URI:{baseUrl}/login/oauth2/code/keycloak}
+            authorization-grant-type: authorization_code
+            scope: openid
+        # Explicit endpoints (not issuer-uri) so startup never fetches OIDC metadata:
+        # integration tests must not require a running Keycloak.
+        provider:
+          keycloak:
+            authorization-uri: ${KEYCLOAK_AUTHORIZATION_URI:http://localhost:8081/realms/team-management/protocol/openid-connect/auth}
+            token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8081/realms/team-management/protocol/openid-connect/token}
+            jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8081/realms/team-management/protocol/openid-connect/certs}
+            user-name-attribute: sub
+
+server:
+  port: 8080
+  tomcat:
+    accesslog:
+      enabled: true
+      directory: ${TOMCAT_ACCESSLOG_DIR:logs}
+      pattern: common
+
+logging:
+  level:
+    root: INFO
+    com.decoupledx.teammanagement: INFO
+    org.hibernate.SQL: ${HIBERNATE_SQL_LEVEL:WARN}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{40} - %msg%n"
+  file:
+    name: ${LOG_FILE:logs/team-management.log}
+    max-size: 10MB
+    max-history: 7
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+app:
+  common:
+    openapi:
+      title: Team Management API
+      description: "Team management for football and other team games: teams, matches, voting, rankings"
+  security:
+    issuer-uri: ${JWT_ISSUER_URI:http://localhost:8081/realms/team-management}
+    # Optional explicit JWKS for the resource server, so JWT decoder startup does
+    # not fetch OIDC metadata from the issuer. Set whenever the issuer hostname is
+    # not resolvable from the app (e.g. containerized app, host-published Keycloak).
+    jwk-set-uri: ${JWT_JWK_SET_URI:}
+    audience: ${APP_AUDIENCE:team-management-api}
+    cors.allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+    dev-public-key: classpath:dev/jwt-public.pem
+    end-session-uri: ${KEYCLOAK_END_SESSION_URI:http://localhost:8081/realms/team-management/protocol/openid-connect/logout}
+  uploads:
+    # Player photos / team logos (decision: photo upload is in the MVP scope).
+    dir: ${UPLOADS_DIR:uploads}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

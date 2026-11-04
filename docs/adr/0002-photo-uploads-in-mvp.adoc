@@ -1,0 +1,36 @@
+# ADR-0002 — Player photos and team logos ship in the MVP
+
+Status: Accepted · Deciders: EfthymiosD · Date: 2026-10-28
+
+## Context
+
+The kickstart plan initially deferred uploads. The product owner decided
+(bootstrap review, 2026-10-28) that photo upload is an important feature and
+must be part of the initial MVP, covering player profile photos and optional
+team logos.
+
+## Decision
+
+Follow the Reservation System's proven upload convention:
+
+1. **Formats**: `image/jpeg`, `image/png`, `image/webp` only (content-type
+   allowlist mapped to file extensions).
+2. **Size**: 5 MB per-file cap enforced application-side (before the servlet
+   container's generic error); `spring.servlet.multipart` limits (5 MB file /
+   10 MB request) sized so the friendly error wins Tomcat's.
+3. **Storage**: local filesystem under `app.uploads.dir` (default `uploads/`),
+   gitignored, never in the database; generated filenames (prefix + timestamp +
+   extension), no client-controlled paths.
+4. **Serving**: static read-only handling of `/uploads/**` (permitAll in the
+   web security chain).
+5. **Authorization**: photo replacement is an admin/profile-owner use case,
+   enforced server-side by the owning module (team module).
+6. Photo bytes are NOT domain state — domain models carry only the web path /
+   reference; the domain stays framework-free and filesystem-agnostic.
+
+## Consequences
+
+- Object storage (S3-compatible) can be introduced later behind the same
+  domain contract without touching domain logic.
+- Backup/restore of the uploads directory is an operational duty documented in
+  deployment; the database alone is not sufficient to restore the app.

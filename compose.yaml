@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: team-management-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-team_management}
+      POSTGRES_USER: ${POSTGRES_USER:-teammanagement}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-teammanagement}
+    ports:
+      - "5432:5432"
+    volumes:
+      - team-management-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-teammanagement} -d ${POSTGRES_DB:-team_management}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: team-management-keycloak
+    command: start-dev --import-realm
+    environment:
+      # Temporary bootstrap admin (Keycloak 26 naming; legacy KEYCLOAK_ADMIN
+      # pair is deprecated) — localhost dev defaults only.
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    depends_on:
+      - postgres
+
+volumes:
+  team-management-pgdata:

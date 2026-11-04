@@ -1,0 +1,25 @@
+# ADR-0000 — Record architecture decisions
+
+Status: Accepted · Date: 2026-10-28
+
+## Context
+
+Team Management is a new, independently deployable application. Its
+architecture decisions should be discoverable by humans and coding agents
+without reading the Reservation System's repository.
+
+## Decision
+
+Use lightweight architecture decision records (this format: number, title,
+status, context, decision, consequences). Number sequentially from 0001.
+
+Bootstrap decisions:
+
+- The project adopts the **Reservation System's** ADR conventions by copy:
+  see ADR-0001.
+- Photo/logo uploads are in the MVP scope: see ADR-0002.
+
+## Consequences
+
+- New decisions are appended as `NNNN-title.adoc` files in this directory.
+- Superseded decisions keep their number and gain a `Superseded by:` line.
