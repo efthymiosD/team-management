@@ -46,6 +46,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Diagnose GPR access (temporary)
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -u "${{ github.actor }}:${GITHUB_TOKEN}" \
+            https://maven.pkg.github.com/efthymiosD/decoupledx-common/com/decoupledx/decoupledx-common/0.1.0/decoupledx-common-0.1.0.pom)
+          echo "GPR HTTP status for decoupledx-common-0.1.0.pom: $code"
+
       - name: Build and verify
         run: ./mvnw -B -ntp verify
 
