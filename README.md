@@ -56,3 +56,8 @@ Planned modules (bootstrap report §3): `team`, `match`, `teamassignment`,
 - `AGENTS.md` — conventions and quirks for coding agents (read before changes).
 
 [Reservation System]: https://github.com/efthymiosD/reservation-system
+
+## Repos
+
+- This application: https://github.com/efthymiosD/team-management
+- Shared library (`decoupledx-common`): https://github.com/efthymiosD/decoupledx-common — CI resolves `com.decoupledx:decoupledx-common` from GitHub Packages.
