@@ -1,16 +1,38 @@
+# syntax=docker/dockerfile:1
 # --- Build stage ---
+#
+# GitHub Packages (decoupledx-common) requires authentication even for
+# reading: the token arrives as a BuildKit SECRET MOUNT (`github_token`; the
+# settings file is created and deleted WITHIN each RUN so it never lands in
+# image layers or the buildx cache). GPR_USERNAME carries the account name —
+# not sensitive. Not consumed yet (no image workflow) — matching the
+# Reservation System so the release/e2e flows can adopt it verbatim.
 # Tests are NOT run here; PR CI (ci.yml) runs `mvn verify` with Testcontainers.
 FROM maven:3.9-eclipse-temurin-26 AS build
+ARG GPR_USERNAME=
+
 WORKDIR /workspace
 
 # Cache dependencies: copy pom first, download, then copy sources
 COPY pom.xml .
 COPY .mvn .mvn
 COPY mvnw .
-RUN chmod +x mvnw && ./mvnw -B -q dependency:go-offline
+RUN chmod +x mvnw
+
+RUN --mount=type=secret,id=github_token,required=true \
+    mkdir -p /root/.m2 \
+ && printf '<settings><servers><server><id>github</id><username>%s</username><password>%s</password></server></servers></settings>' \
+        "$GPR_USERNAME" "$(cat /run/secrets/github_token)" > /root/.m2/settings.xml \
+ && ./mvnw -B -q dependency:go-offline ; \
+    rc=$? ; rm -f /root/.m2/settings.xml ; exit $rc
 
 COPY src src
-RUN ./mvnw -B -q -DskipTests package
+RUN --mount=type=secret,id=github_token,required=true \
+    mkdir -p /root/.m2 \
+ && printf '<settings><servers><server><id>github</id><username>%s</username><password>%s</password></server></servers></settings>' \
+        "$GPR_USERNAME" "$(cat /run/secrets/github_token)" > /root/.m2/settings.xml \
+ && ./mvnw -B -q -DskipTests package ; \
+    rc=$? ; rm -f /root/.m2/settings.xml ; exit $rc
 
 # --- Runtime stage ---
 # JRE version matches the build JDK (temurin 26) — deliberate pairing;
@@ -22,6 +44,7 @@ FROM eclipse-temurin:27-jre AS runtime
 # dpkg package) — unused and its bundled Go stdlib carries HIGH CVEs that would
 # fail the Trivy gate.
 RUN apt-get update \
+ && apt-get upgrade -y \
  && apt-get install -y --no-install-recommends curl \
  && rm -rf /var/lib/apt/lists/* \
  && rm -f /usr/bin/pebble
