@@ -51,7 +51,7 @@ Planned modules (bootstrap report §3): `team`, `match`, `teamassignment`,
 
 ## Documentation
 
-- `docs/BOOTSTRAP-REPORT.md` — Phase 0 findings, version matrix, module plan.
+- `docs/tmp` — Phase 0 findings, version matrix, module plan.
 - `docs/adr/` — architecture decision records.
 - `AGENTS.md` — conventions and quirks for coding agents (read before changes).
 

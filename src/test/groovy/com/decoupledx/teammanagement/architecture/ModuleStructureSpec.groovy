@@ -4,6 +4,7 @@ import com.tngtech.archunit.base.DescribedPredicate
 import com.tngtech.archunit.core.domain.JavaClass
 import com.tngtech.archunit.core.domain.JavaClasses
 import com.tngtech.archunit.core.importer.ClassFileImporter
+import spock.lang.Ignore
 import spock.lang.Specification
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes
@@ -59,14 +60,16 @@ class ModuleStructureSpec extends Specification {
                 .check(CLASSES)
     }
 
-    def "web controllers do not depend on sibling adapters"() {
+    def "web controllers never depend on the persistence adapter (ADR-0001 rule 7)"() {
         expect:
         noClasses()
                 .that(CONTROLLERS)
                 .should().dependOnClassesThat()
-                .resideInAnyPackage("..adapter.web..", "..adapter.persistence..")
-                .because("ADR-0001 rules 7 + 9: web controllers use inbound ports "
-                        + "(domain.port) directly; adapters never depend on sibling adapters")
+                .resideInAnyPackage("..adapter.persistence..")
+                .because("ADR-0001: controllers drive inbound ports; the"
+                        + " persistence adapter is a sibling they may never touch."
+                        + " (Controller-local request records in the same"
+                        + " .adapter.web package are deliberately NOT flagged.)")
                 .check(CLASSES)
     }
 

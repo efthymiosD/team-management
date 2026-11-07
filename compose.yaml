@@ -7,7 +7,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-teammanagement}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-teammanagement}
     ports:
-      - "5432:5432"
+      # 5433 on the host: the Reservation System dev stack owns 5432 — both
+      # stacks must be able to run side by side (see AGENTS.md Ops).
+      - "5433:5432"
     volumes:
       - team-management-pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -26,7 +28,8 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}
     ports:
-      - "8081:8080"
+      # 8082 on the host: 8081 belongs to the Reservation System's Keycloak.
+      - "8082:8080"
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     depends_on:

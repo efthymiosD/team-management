@@ -17,7 +17,7 @@ spring:
     basename: messages/messages
     fallback-to-system-locale: false
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/team_management}
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/team_management}
     username: ${DB_USERNAME:teammanagement}
     password: ${DB_PASSWORD:teammanagement}
   jpa:
@@ -44,9 +44,9 @@ spring:
         # integration tests must not require a running Keycloak.
         provider:
           keycloak:
-            authorization-uri: ${KEYCLOAK_AUTHORIZATION_URI:http://localhost:8081/realms/team-management/protocol/openid-connect/auth}
-            token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8081/realms/team-management/protocol/openid-connect/token}
-            jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8081/realms/team-management/protocol/openid-connect/certs}
+            authorization-uri: ${KEYCLOAK_AUTHORIZATION_URI:http://localhost:8082/realms/team-management/protocol/openid-connect/auth}
+            token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8082/realms/team-management/protocol/openid-connect/token}
+            jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8082/realms/team-management/protocol/openid-connect/certs}
             user-name-attribute: sub
 
 server:
@@ -86,7 +86,7 @@ app:
       title: Team Management API
       description: "Team management for football and other team games: teams, matches, voting, rankings"
   security:
-    issuer-uri: ${JWT_ISSUER_URI:http://localhost:8081/realms/team-management}
+    issuer-uri: ${JWT_ISSUER_URI:http://localhost:8082/realms/team-management}
     # Optional explicit JWKS for the resource server, so JWT decoder startup does
     # not fetch OIDC metadata from the issuer. Set whenever the issuer hostname is
     # not resolvable from the app (e.g. containerized app, host-published Keycloak).
@@ -94,7 +94,7 @@ app:
     audience: ${APP_AUDIENCE:team-management-api}
     cors.allowed-origins: ${CORS_ALLOWED_ORIGINS:}
     dev-public-key: classpath:dev/jwt-public.pem
-    end-session-uri: ${KEYCLOAK_END_SESSION_URI:http://localhost:8081/realms/team-management/protocol/openid-connect/logout}
+    end-session-uri: ${KEYCLOAK_END_SESSION_URI:http://localhost:8082/realms/team-management/protocol/openid-connect/logout}
   uploads:
     # Player photos / team logos (decision: photo upload is in the MVP scope).
     dir: ${UPLOADS_DIR:uploads}

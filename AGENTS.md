@@ -1,5 +1,20 @@
 # team-management — Agent Instructions
 
+## Engineering rules (owner-agreed)
+
+- **Pre-release migrations (decided 2026-11-07):** the app ships ONE baseline
+  migration, `V1__init_schema.sql`, EXTENDED in place by later features while
+  the app is unpublished (`mvnw clean` after touching it). Separate
+  `V2+` files may exist only after the first release creates deployed history.
+- **Postgres aborted-transaction rule (proven 2026-11-07 by the concurrent
+  first-join race spec):** after any failed statement, a Postgres transaction
+  is dead — statements issued inside it fail ("current transaction is
+  aborted"). Constraint-race recovery therefore NEVER happens mid-transaction:
+  either the adapter ends the flow with the translated 409, or the recovery
+  read/write runs as its OWN unit outside the wrapped tx. Identity account
+  provisioning and the `CurrentPlayerProfile` seam deliberately run outside
+  `tx.run(...)` for this reason (library ADR-0002 documents the same rule).
+
 ## Delivery gate (user-directed rule)
 
 Do NOT commit, push, open a PR, merge, or check out an updated main until
@@ -145,7 +160,15 @@ source ~/tools/env.sh          # JDK 26 + Maven 3.9.16
 - Docker (Rancher Desktop) required for integration tests; socket fix as in
   the Reservation System README. Local Postgres alternative: `DB_URL`,
   `DB_USERNAME`, `DB_PASSWORD` (default
-  `jdbc:postgresql://localhost:5432/team_management`).
+  `jdbc:postgresql://localhost:5433/team_management`).
+
+## Dev-stack ports (agreed — sibling apps run side by side)
+
+- team-management: Postgres **5433**, Keycloak **8082**, app **8080**.
+- reservation-system owns Postgres **5432** + Keycloak **8081** — never
+  publish team-management containers on those host ports.
+- App port 8080 is the shared exception: run the second app with
+  `--server.port=8083` (or similar) when both must be served at once.
 
 ## Photo/logo uploads (MVP scope, decided)
 
@@ -156,6 +179,11 @@ source ~/tools/env.sh          # JDK 26 + Maven 3.9.16
 
 ## Ops
 
+- CI/CD conventions (mirroring reservation-system; agreed): PR-only `ci.yml`
+  with the required `mvn verify` check; `packages: read` + GPR credentials so
+  Actions resolves decoupledx-common; image builds hermetic via BuildKit
+  secret `github_token` + `GPR_USERNAME` (never baked into layers); release
+  pipelines publish versioned, immutable artifacts scanned before promotion.
 - `./mvnw verify` is the single CI gate (PR-only, required check); Dockerfile
   multi-stage temurin, non-root `app` user, curl healthcheck; compose for dev
   (postgres + keycloak). Trivy-driven pins in the pom: tomcat 11.0.25,
