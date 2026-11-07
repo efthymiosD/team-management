@@ -10,7 +10,15 @@ package com.decoupledx.teammanagement.shared;
  */
 public enum ErrorCode implements com.decoupledx.common.error.ErrorCode {
 
-    UNEXPECTED_ERROR(500, "An unexpected error occurred");
+    UNEXPECTED_ERROR(500, "An unexpected error occurred"),
+    TEAM_NOT_FOUND(404, "Team not found"),
+    PROFILE_NOT_FOUND(404, "Player profile not found"),
+    MEMBER_NOT_FOUND(404, "Member not found in this team"),
+    TEAM_NAME_TAKEN(409, "A team with this name already exists"),
+    ALREADY_MEMBER(409, "Player is already a member of this team"),
+    NOT_TEAM_ADMIN(403, "Only team administrators may perform this action"),
+    NOT_TEAM_MEMBER(403, "You are not a member of this team"),
+    LAST_ADMIN(409, "Cannot remove or demote the last administrator of a team");
 
     private final int httpStatus;
     private final String defaultMessage;

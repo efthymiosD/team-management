@@ -1,6 +1,5 @@
 package com.decoupledx.teammanagement.identity.domain;
 
-import com.decoupledx.common.transaction.TransactionRunner;
 import com.decoupledx.teammanagement.identity.adapter.api.AccountEntry;
 import com.decoupledx.teammanagement.identity.adapter.api.AccountId;
 import com.decoupledx.teammanagement.identity.domain.port.AccountRepository;
@@ -16,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 class AccountServiceImpl implements AccountService {
 
     private final AccountRepository accounts;
-    private final TransactionRunner tx;
 
     @Override
     public AccountId resolveOrProvision(String idpSubject) {
@@ -25,16 +23,19 @@ class AccountServiceImpl implements AccountService {
 
     @Override
     public AccountId resolveOrProvision(String idpSubject, String displayName) {
-        return tx.run(() -> {
-            AccountId existing = accounts.findBySubject(idpSubject)
-                    .orElseGet(() -> accounts.create(idpSubject, displayName));
-            if (displayName != null
-                    && !accounts.displayNames(java.util.List.of(existing))
-                    .containsKey(existing)) {
-                accounts.updateDisplayName(existing, displayName);
-            }
-            return existing;
-        });
+        // Deliberately NO transaction wrapper: on a parallel first-request
+        // race the loser's INSERT fails and aborts a wrapped transaction
+        // ("current transaction is aborted"), so no further statements could
+        // run. Each repository call is its own unit; the profile/account
+        // unique index is the truth and the adapter recovers the winner's
+        // row on the race.
+        AccountId account = accounts.findBySubject(idpSubject)
+                .orElseGet(() -> accounts.create(idpSubject, displayName));
+        if (displayName != null
+                && !accounts.displayNames(List.of(account)).containsKey(account)) {
+            accounts.updateDisplayName(account, displayName);
+        }
+        return account;
     }
 
     @Override
