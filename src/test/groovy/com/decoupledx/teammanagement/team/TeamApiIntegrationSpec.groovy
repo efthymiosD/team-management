@@ -285,8 +285,10 @@ class TeamApiIntegrationSpec extends PostgresIntegrationSpec {
         start.countDown()
         int firstStatus = first.get()
         int secondStatus = second.get()
-        then: "the locking read lets exactly one demote commit; the loser hits LAST_ADMIN"
-        [firstStatus, secondStatus].sort() == [200, 409]
+        then: "the happy-path invariant survives every interleaving: exactly one demote\n        commits, the loser surfaces as an honest client error (409 LAST_ADMIN when its\n        permission check still saw it as admin, or 403 NOT_TEAM_ADMIN when the other\n        racer's demote under READ COMMITTED revoked the actor's admin role first),\n        and the at-least-one-admin invariant holds afterwards"
+        firstStatus == 200 || secondStatus == 200
+        [firstStatus, secondStatus].every { status -> status in [200, 403, 409] }
+        [firstStatus, secondStatus].count(200) == 1
         and: "the at-least-one-admin invariant holds afterwards"
         def admins = json.readTree(teamView("creator-1", teamId)).get("members").toList()
                 .findAll { it.get("admin").booleanValue() }
