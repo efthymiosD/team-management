@@ -1,8 +1,7 @@
 package com.decoupledx.teammanagement.team.adapter.persistence;
-
 import com.decoupledx.common.error.BusinessException;
 import com.decoupledx.teammanagement.shared.ErrorCode;
-import com.decoupledx.teammanagement.team.domain.TeamDataValue;
+import com.decoupledx.teammanagement.team.domain.port.TeamDataValue;
 import com.decoupledx.teammanagement.team.domain.port.TeamRepository;
 import java.util.Collection;
 import java.util.List;

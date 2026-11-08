@@ -1,6 +1,6 @@
 package com.decoupledx.teammanagement.team.adapter.persistence;
+import com.decoupledx.teammanagement.team.domain.port.PlayerProfileDataValue;
 
-import com.decoupledx.teammanagement.team.domain.PlayerProfileDataValue;
 import com.decoupledx.teammanagement.team.domain.port.PlayerProfileRepository;
 import java.util.Collection;
 import java.util.List;
@@ -19,6 +19,11 @@ class PlayerProfilePersistenceAdapter implements PlayerProfileRepository {
     @Override
     public PlayerProfileDataValue save(PlayerProfileDataValue profile) {
         if (profile.id() != null) {
+            // UPDATE branch (row expected): constraint races at flush time
+            // surface honestly to the caller (e.g. the claim flow translates
+            // them per loss mode in ProfileClaimServiceImpl). On a miss the
+            // fall-through INSERT below handles the assigned-id provisioning
+            // flow, with its own insert-race recovery.
             PlayerProfileEntity existing = profiles.findById(profile.id()).orElse(null);
             if (existing != null) {
                 existing.syncFrom(profile);
@@ -28,14 +33,12 @@ class PlayerProfilePersistenceAdapter implements PlayerProfileRepository {
         try {
             return profiles.saveAndFlush(new PlayerProfileEntity(profile)).toData();
         } catch (DataIntegrityViolationException conflict) {
-            // Parallel first-use provisioning (account-claiming race — the
-            // claim-TOKEN race will need its own recovery when the claim
-            // flow lands). Resolve INSIDE the work: return the winner's row
-            // (library ADR-0002).
+            // Parallel first-use provisioning (account-claiming race); the
+            // loser recovers the winner's row in its own unit (ADR-0002).
+            // Claim-token races surface on the UPDATE branch — never here.
             return recoverExistingOrRethrow(profile, conflict);
         } catch (ConcurrencyFailureException deadlock) {
-            // 40P01 on the insert path: the winner's row is committed or
-            // pending recovery elsewhere — same in-work recovery.
+            // 40P01 on the insert path — same in-work recovery.
             return recoverExistingOrRethrow(profile, deadlock);
         }
     }
@@ -59,6 +62,12 @@ class PlayerProfilePersistenceAdapter implements PlayerProfileRepository {
     @Override
     public PlayerProfileDataValue findByAccount(UUID accountId) {
         PlayerProfileEntity entity = profiles.findByAccountId(accountId);
+        return entity != null ? entity.toData() : null;
+    }
+
+    @Override
+    public PlayerProfileDataValue findByClaimToken(String claimToken) {
+        PlayerProfileEntity entity = profiles.findByClaimToken(claimToken);
         return entity != null ? entity.toData() : null;
     }
 

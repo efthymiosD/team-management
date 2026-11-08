@@ -1,4 +1,5 @@
 package com.decoupledx.teammanagement.team.domain;
+import com.decoupledx.teammanagement.team.domain.port.TeamMembershipDataValue;
 
 import java.time.Instant;
 import java.util.Objects;

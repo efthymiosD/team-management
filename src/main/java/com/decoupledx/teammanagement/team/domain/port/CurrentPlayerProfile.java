@@ -1,6 +1,5 @@
 package com.decoupledx.teammanagement.team.domain.port;
 
-import com.decoupledx.teammanagement.team.domain.PlayerProfileDataValue;
 
 /**
  * Seam between the account identity and a player profile: every account gets

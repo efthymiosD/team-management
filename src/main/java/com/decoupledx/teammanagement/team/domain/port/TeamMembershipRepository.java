@@ -1,6 +1,5 @@
 package com.decoupledx.teammanagement.team.domain.port;
 
-import com.decoupledx.teammanagement.team.domain.TeamMembershipDataValue;
 import java.util.List;
 import java.util.UUID;
 

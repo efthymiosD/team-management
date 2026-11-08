@@ -1,13 +1,14 @@
 # ADR-0002 — Player photos and team logos ship in the MVP
 
-Status: Accepted · Deciders: EfthymiosD · Date: 2026-10-28
+Status: Accepted · Deciders: EfthymiosD · Date: 2026-11-08 (initial: 2026-10-28)
 
 ## Context
 
 The kickstart plan initially deferred uploads. The product owner decided
 (bootstrap review, 2026-10-28) that photo upload is an important feature and
 must be part of the initial MVP, covering player profile photos and optional
-team logos.
+team logos. Slice 2 (Phase 2) implemented it — this ADR records the as-built
+shape.
 
 ## Decision
 
@@ -15,22 +16,39 @@ Follow the Reservation System's proven upload convention:
 
 1. **Formats**: `image/jpeg`, `image/png`, `image/webp` only (content-type
    allowlist mapped to file extensions).
-2. **Size**: 5 MB per-file cap enforced application-side (before the servlet
-   container's generic error); `spring.servlet.multipart` limits (5 MB file /
-   10 MB request) sized so the friendly error wins Tomcat's.
-3. **Storage**: local filesystem under `app.uploads.dir` (default `uploads/`),
-   gitignored, never in the database; generated filenames (prefix + timestamp +
-   extension), no client-controlled paths.
+2. **Size**: 5 MB per-file cap enforced application-side;
+   `spring.servlet.multipart` limits (6 MB file / 12 MB request) are sized
+   slightly ABOVE it so the friendly business error wins Tomcat's.
+3. **Storage**: local filesystem under `app.uploads.dir` (default `uploads/`,
+   gitignored), never in the database; generated filenames
+   (`photo-<uuid>.ext` / `logo-<uuid>.ext`), no client-controlled paths.
 4. **Serving**: static read-only handling of `/uploads/**` (permitAll in the
-   web security chain).
-5. **Authorization**: photo replacement is an admin/profile-owner use case,
-   enforced server-side by the owning module (team module).
+   web security chain; UUID names make URLs unguessable). A
+   `WebMvcConfigurer` in the team module's web adapter maps the directory.
+5. **Endpoints** (as-built, slice 2):
+   - `POST /api/teams/{teamId}/logo` — team admins only (domain rule).
+   - `POST /api/players/me/photo` — the acting account replaces ITS OWN
+     profile photo (no admin-impersonation flow in the MVP; a future
+     admin-variant would be an explicit-actor port method per ADR-0002).
+   - `POST /api/claims` — invite-token profile claiming: the authenticated
+     presenter of a valid, unused claim token binds THEIR account to the
+     unclaimed profile. Single use (token cleared on success; the unique
+     claim_token/account columns catch any race as an honest 409). One
+     profile per account (DB-enforced): an account that already has a profile
+     (e.g. auto-provisioned by joining) gets 409 `ACCOUNT_ALREADY_PROFILED`
+     and may not claim.
 6. Photo bytes are NOT domain state — domain models carry only the web path /
-   reference; the domain stays framework-free and filesystem-agnostic.
+   reference; the domain stays framework-free and filesystem-agnostic. The
+   `Uploads` validator (type/size/store) is a web-adapter component: the
+   domain sees only accepted paths.
+7. Replacing a photo keeps the old file on disk (never delete on the request
+   path); directory reaping is an ops duty.
 
 ## Consequences
 
 - Object storage (S3-compatible) can be introduced later behind the same
   domain contract without touching domain logic.
-- Backup/restore of the uploads directory is an operational duty documented in
-  deployment; the database alone is not sufficient to restore the app.
+- Backup/restore of the uploads directory is an operational duty documented
+  in deployment; the database alone is not sufficient to restore the app.
+- Claim-token admin UX (re-send/re-generate revoked tokens) deliberately
+  deferred — tokens are issued in the admin registration response only.

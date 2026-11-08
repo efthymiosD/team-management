@@ -63,7 +63,7 @@ source tree, test infra, CI/Docker conventions). Status: **for review — no cod
 
 Test deps: `spock-core`, `spock-spring` + existing `spring-boot-starter-test`, `spring-boot-webmvc-test` (`@AutoConfigureMockMvc` lives there in Boot 4), `spring-security-test`, `spring-modulith-starter-test`, `spring-boot-testcontainers`, `testcontainers-postgresql`.
 
-Known quirks carried into the new project: JDK 26 renders `ISO_LOCAL_TIME` with seconds (JSON assertions); Spock 2.4-M7 is a milestone — check for a newer 2.4.x/2.5 at bootstrap time; Spotless config covers `../../src/test/java` only — Groovy sources under `src/test/groovy` start unformatted (add a Spotless `groovy` section later if desired).
+Known quirks carried into the new project: JDK 26 renders `ISO_LOCAL_TIME` with seconds (JSON assertions); Spock 2.4-M7 is a milestone — check for a newer 2.4.x/2.5 at bootstrap time; Spotless config covers `../../src/test/java` only — Groovy sources under `../../src/test/groovy` start unformatted (add a Spotless `groovy` section later if desired).
 
 ---
 
@@ -125,8 +125,8 @@ The new application **copies and renames** (Customer → Account) the stable sha
 ## 5. Bootstrap implementation plan and test strategy
 
 ### Steps (Phase 1)
-1. Create repo `team-management/`: git init, `../../.gitignore`, README, `docs/adr/` (0000 meta-ADR + "carries over reservation-system ADR-0001…0004" note), `AGENTS.md` adapted from the reference (delivery gate, checklist, conventions, quirks).
-2. `../../pom.xml`: Boot 4.1.1 parent, all §2 pins, plus `spock-bom` import, `spock-core`/`spock-spring`, `groovy.version` property, `gmavenplus-plugin` (5.1.0) for `src/test/groovy`.
+1. Create repo `team-management/`: git init, `../../.gitignore`, README, `../adr` (0000 meta-ADR + "carries over reservation-system ADR-0001…0004" note), `AGENTS.md` adapted from the reference (delivery gate, checklist, conventions, quirks).
+2. `../../pom.xml`: Boot 4.1.1 parent, all §2 pins, plus `spock-bom` import, `spock-core`/`spock-spring`, `groovy.version` property, `gmavenplus-plugin` (5.1.0) for `../../src/test/groovy`.
 3. Package skeleton `com.decoupledx.teammanagement`: `shared/` copy + rename, `identity` module adapted to **Account**, `Application`, `application.yml` (+ prod profile, dev JWT pem), Flyway `V1__init_schema.sql` (baseline: identity + event registry conventions).
 4. Spock harness in `../../src/test/groovy`:
    - `ApplicationContextSmokeSpec` — context loads (proves Spock + `spock-spring` on Boot 4.1.1 / JUnit 6 / Java 26).
@@ -134,7 +134,7 @@ The new application **copies and renames** (Customer → Account) the stable sha
    - `PostgresMigrationSpec` — Flyway migrates a real PostgreSQL (proves migration tool + Testcontainers).
    - `ModularitySpec` — `ApplicationModules.of(...).verify()` (proves module detection/boundaries).
    - `DomainPuritySpec` — domain free of framework annotations.
-5. Infra files: `../../Dockerfile`, `compose.yaml` (app + postgres + Keycloak dev realm `team-management`), `.github/workflows/ci.yml` (JDK 26 + Testcontainers, PR-trigger), `.env.example`.
+5. Infra files: `../../Dockerfile`, `../../compose.yaml` (app + postgres + Keycloak dev realm `team-management`), `.github/workflows/ci.yml` (JDK 26 + Testcontainers, PR-trigger), `.env.example`.
 6. Gate: `./mvnw verify` green with all specs; `spotless:apply` clean; then (and only then) Phase 2.
 
 ### Test strategy (Spock for every layer, per plan §3)
@@ -160,7 +160,7 @@ The new application **copies and renames** (Customer → Account) the stable sha
 7. **Membership change during open vote**: eligibility re-validated at close; ballots from departed members are voided; final participant snapshot is authoritative.
 8. **Result confirmation**: team admins confirm results; corrections create a new confirmed result version and standings recompute from results (no mutable counters). Cancelled/abandoned/postponed matches produce no standings entries.
 9. **MVP vote parameters**: voters = final participants; candidates = final participants; configurable duration (default 48 h); ballot change allowed while open; result visible after close to team members; **tie policy: shared recognition (multiple winners recorded, no runoff) for MVP**.
-10. **Photo/logo uploads — IN SCOPE (user decision)**: player profile photos and team logos ship in the MVP, following the reference's proven upload convention: `image/jpeg|png|webp` allowlist, 5 MB per-file cap enforced application-side (multipart limits sized so the friendly error wins), filesystem storage under a configurable upload dir (`app.uploads.dir`, default `uploads/`, gitignored), served read-only from `/uploads/**`; storage constraints and who may view/replace photos decided in the team module design (Phase 2).
+10. **Photo/logo uploads — IN SCOPE (user decision)**: player profile photos and team logos ship in the MVP, following the reference's proven upload convention: `image/jpeg|png|webp` allowlist, 5 MB per-file cap enforced application-side (multipart limits sized so the friendly error wins), filesystem storage under a configurable upload dir (`app.uploads.dir`, default `../../uploads`, gitignored), served read-only from `/uploads/**`; storage constraints and who may view/replace photos decided in the team module design (Phase 2).
 11. **i18n scope**: EN + PL + EL bundles from day one (cheap to carry the convention; content authored per-language later).
 12. **Deployment target**: same QNAP/Tailscale pattern as the reference, new realm/ports/hostname — confirm.
 13. **Coordinates**: groupId `com.decoupledx`, artifact `team-management`, base package `com.decoupledx.teammanagement` — confirm.

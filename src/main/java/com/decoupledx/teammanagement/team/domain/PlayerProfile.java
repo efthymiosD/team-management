@@ -1,4 +1,5 @@
 package com.decoupledx.teammanagement.team.domain;
+import com.decoupledx.teammanagement.team.domain.port.PlayerProfileDataValue;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -97,6 +98,17 @@ class PlayerProfile {
 
     void updateContactDetails(String contactDetails, Instant now) {
         this.contactDetails = contactDetails;
+        this.updatedAt = now;
+    }
+
+    /** Claiming: binds the acting account and consumes the claim token (single use). */
+    void linkAccount(UUID accountId, Instant now) {
+        this.accountId = Objects.requireNonNull(accountId, "account id must not be null");
+        this.updatedAt = now;
+    }
+
+    void clearClaimToken(Instant now) {
+        this.claimToken = null;
         this.updatedAt = now;
     }
 

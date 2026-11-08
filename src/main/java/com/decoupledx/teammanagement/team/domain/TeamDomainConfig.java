@@ -5,8 +5,11 @@ import com.decoupledx.teammanagement.identity.adapter.api.AccountDirectoryApi;
 import com.decoupledx.teammanagement.identity.adapter.api.CurrentAccountApi;
 import com.decoupledx.teammanagement.team.domain.port.CreateTeamService;
 import com.decoupledx.teammanagement.team.domain.port.CurrentPlayerProfile;
+import com.decoupledx.teammanagement.team.domain.port.PlayerProfilePhotoService;
 import com.decoupledx.teammanagement.team.domain.port.PlayerProfileRepository;
+import com.decoupledx.teammanagement.team.domain.port.ProfileClaimService;
 import com.decoupledx.teammanagement.team.domain.port.TeamAdministrationService;
+import com.decoupledx.teammanagement.team.domain.port.TeamLogoService;
 import com.decoupledx.teammanagement.team.domain.port.TeamMembershipRepository;
 import com.decoupledx.teammanagement.team.domain.port.TeamProfileManagementService;
 import com.decoupledx.teammanagement.team.domain.port.TeamQueryService;
@@ -57,6 +60,24 @@ class TeamDomainConfig {
             PlayerProfileRepository profiles, TeamMembershipRepository memberships,
             TransactionRunner tx) {
         return new TeamAdministrationServiceImpl(permissions, profiles, memberships, tx);
+    }
+
+    @Bean
+    TeamLogoService teamLogoService(TeamPermissions permissions, TeamRepository teams,
+            TeamQueryService teamQuery, Clock clock, TransactionRunner tx) {
+        return new TeamLogoServiceImpl(permissions, teams, teamQuery, clock, tx);
+    }
+
+    @Bean
+    PlayerProfilePhotoService playerProfilePhotoService(CurrentPlayerProfile currentPlayerProfile,
+            PlayerProfileRepository profiles, Clock clock) {
+        return new PlayerProfilePhotoServiceImpl(currentPlayerProfile, profiles, clock);
+    }
+
+    @Bean
+    ProfileClaimService profileClaimService(CurrentAccountApi accounts, PlayerProfileRepository profiles,
+            Clock clock, TransactionRunner tx) {
+        return new ProfileClaimServiceImpl(accounts, profiles, clock, tx);
     }
 
     @Bean

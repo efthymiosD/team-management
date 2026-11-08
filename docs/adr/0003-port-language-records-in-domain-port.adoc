@@ -1,0 +1,55 @@
+# ADR-0003 — Port-language DataValue records live in domain.port; domain never depends on adapters
+
+Status: Accepted · Deciders: EfthymiosD · Date: 2026-11-09
+
+## Context
+
+Following the Reservation System's ADR-0001 convention, the `…DataValue`
+immutable snapshots (the language spoken across the persistence ports) lived
+in each module's `adapter/persistence` package. The team module surfaced a
+hexagonal defect in that placement: domain code imported a
+**public type from an adapter package** (`team.domain` →
+`team.adapter.persistence.TeamDataValue`), inverting the dependency direction
+(domain may depend only on its own ports; adapters depend on the domain).
+The owner argued the rule break; the decision below restores the inward
+direction.
+
+## Decision
+
+1. **The `…DataValue` records move to the ports' own package**:
+   `team/domain/port/` (`TeamDataValue`, `PlayerProfileDataValue`,
+   `TeamMembershipDataValue`) — public immutable records, one file each
+   (per ADR-0003 record placement naming: values keep their `…DataValue`
+   naming across sibling apps).
+2. **Rule 2/4/10 amendment (ADR-0001)**: `domain.port` hosts the public ports
+   AND their public language records; the language records are additionally
+   arch-pinned as **public records** (not interfaces).
+3. **Dependency direction made literal and enforced** (ArchUnit, in
+   `ModuleStructureSpec`): classes under any `<module>.domain…` package must
+   NOT depend on classes in `..adapter.persistence..`, `..adapter.web..`, or
+   `..adapter.scheduling..`. Consuming **other modules'** `adapter.api` types
+   (`CurrentAccountApi`, `AccountDirectoryApi`, cross-module schemas per
+   ADR-0002 of the Reservation System) remains the single sanctioned
+   cross-module edge — feature domains call other modules' APIs (ADR-0002
+   placement).
+4. **Persistence adapter shape**: `save()` splits into an UPDATE branch (row
+   expected; no constraint-race catch — races surface honestly to the calling
+   flow, e.g. the claim flow (ADR-0002 for uploads/claims)) and an INSERT
+   branch with the DIVE/CFE recovery (provisioning races resolve in-work per
+   the aborted-transaction rule and library ADR-0002).
+5. Entities remain in `adapter/persistence`, mapping to/from the records — the
+   storage adapter assembles data for the port contract (adapter → domain).
+6. Endpoints built on this contract ride with the claiming/media slice:
+   logo/photo upload (ADR-0002) and `POST /api/claims`.
+
+## Consequences
+
+- Domain depends on nothing but itself and sanctioned module APIs — true to
+  the hexagonal direction; the arch rule now enforces it mechanically.
+- The Reservation System's ADR-0001 gains the same amendment note; migrating
+  ITS modules (`administration/domain` → `RecurringReservationDataValue`,
+  etc.) rides its next change batch (the uncommitted identity/materializer
+  work already sits there).
+- The narrow corner where the claim UPDATE's flush hits the account-unique
+  constraint while the adapter's insert-style recovery could return the
+  wrong row is structurally closed: the UPDATE branch has no recovery catch.
