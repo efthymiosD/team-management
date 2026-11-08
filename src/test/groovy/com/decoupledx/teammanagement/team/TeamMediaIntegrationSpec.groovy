@@ -251,12 +251,13 @@ class TeamMediaIntegrationSpec extends PostgresIntegrationSpec {
         def secondResult = second.get()
         int firstStatus = firstResult.getResponse().getStatus()
         int secondStatus = secondResult.getResponse().getStatus()
-        then: "the DB is the truth — the loser is the honest 409 (no 500): the\n        concurrent winner either claimed first (unique token/account columns,\n        DIVE) or won the version race on the same row (CFE) — both translated"
-        [firstStatus, secondStatus].every { status -> status in [200, 409] }
+        then: "the loser is the honest 4xx, never a 500. Two legitimate loss\n        modes: under the slower CI/serial interleave the loser never SAW the\n        token (the winner consumed+committed first — the read finds nothing\n        → CLAIM_TOKEN_UNKNOWN 404, the sequential-reuse semantic); when both\n        read the token before either committed, the version race on the\n        claim row fires CFE → PROFILE_ALREADY_CLAIMED 409."
+        [firstStatus, secondStatus].every { status -> status == 200 || status == 404 || status == 409 }
         [firstStatus, secondStatus].count(200) == 1
-        and: "the loser is the PROFILE race code, not another 409 translation"
-        def loserResult = firstStatus == 200 ? secondResult : firstResult
-        json.readTree(loserResult.getResponse().getContentAsString()).get("title")
+        and: "the 409-mode loser carries the PROFILE race title, not another translation"
+        def loserBody = firstStatus == 409 ? firstResult.getResponse().getContentAsString()
+                : secondStatus == 409 ? secondResult.getResponse().getContentAsString() : null
+        loserBody == null || json.readTree(loserBody).get("title")
                 .textValue() == "PROFILE_ALREADY_CLAIMED"
         cleanup:
         pool.shutdownNow()
