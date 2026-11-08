@@ -1,9 +1,9 @@
 package com.decoupledx.teammanagement.team.domain;
-
 import com.decoupledx.common.error.BusinessException;
 import com.decoupledx.common.transaction.TransactionRunner;
 import com.decoupledx.teammanagement.shared.ErrorCode;
 import com.decoupledx.teammanagement.team.adapter.api.TeamWithMembersInfo;
+import com.decoupledx.teammanagement.team.domain.port.TeamDataValue;
 import com.decoupledx.teammanagement.team.domain.port.TeamProfileManagementService;
 import com.decoupledx.teammanagement.team.domain.port.TeamQueryService;
 import com.decoupledx.teammanagement.team.domain.port.TeamRepository;

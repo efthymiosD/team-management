@@ -1,6 +1,5 @@
 package com.decoupledx.teammanagement.team.domain.port;
 
-import com.decoupledx.teammanagement.team.domain.PlayerProfileDataValue;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -16,6 +15,8 @@ public interface PlayerProfileRepository {
     PlayerProfileDataValue find(UUID profileId);
 
     PlayerProfileDataValue findByAccount(UUID accountId);
+
+    PlayerProfileDataValue findByClaimToken(String claimToken);
 
     /** Batch lookup for assembling member views (no per-member queries). */
     List<PlayerProfileDataValue> findAllByIds(Collection<UUID> profileIds);

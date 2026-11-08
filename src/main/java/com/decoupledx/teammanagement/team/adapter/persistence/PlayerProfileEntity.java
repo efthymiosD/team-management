@@ -1,6 +1,6 @@
 package com.decoupledx.teammanagement.team.adapter.persistence;
+import com.decoupledx.teammanagement.team.domain.port.PlayerProfileDataValue;
 
-import com.decoupledx.teammanagement.team.domain.PlayerProfileDataValue;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;

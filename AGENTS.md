@@ -110,6 +110,14 @@ source ~/tools/env.sh          # JDK 26 + Maven 3.9.16
   configs, adapters never call adapters, domain returns immutable snapshots
   (`…Info`/`…DataValue`), controllers use domain ports not `adapter.api`,
   records in own top-level files (ADR-0003).
+- Hexagonal direction + port-language records (ADR-0003, amended 2026-11-08):
+  the `…DataValue` records live in `domain.port` (public immutable records —
+  the data shape the ports speak), so `domain` imports NOTHING from
+  `adapter` packages (persistence/web/scheduling); consuming other modules'
+  `adapter.api` types is the one sanctioned cross-module edge (ADR-0002).
+  Arch-enforced in `ModuleStructureSpec` (DataValue-records rule +
+  domain-vs-adapters rule); entities stay in `adapter/persistence` and map
+  to/from the records.
 - ADR-0002: adapters never resolve/thread the logged-in account — ports expose
   implicit "me" variants; `identity` exports `CurrentAccountApi` +
   `AccountDirectoryApi`; the webui `CurrentUserAdvice` (when it exists) is the
@@ -170,12 +178,21 @@ source ~/tools/env.sh          # JDK 26 + Maven 3.9.16
 - App port 8080 is the shared exception: run the second app with
   `--server.port=8083` (or similar) when both must be served at once.
 
-## Photo/logo uploads (MVP scope, decided)
+## Photo/logo uploads + claiming (MVP scope, as-built slice 2)
 
 - Reference convention: `image/jpeg|png|webp` allowlist, 5 MB app-side cap,
   filesystem storage under `app.uploads.dir` (default `uploads/`, gitignored),
-  served from `/uploads/**`; multipart limits (5MB/10MB) sized so the friendly
-  app error wins Tomcat's.
+  served read-only from `/uploads/**` (StaticUploadsConfig maps the dir;
+  SecurityConfig permitAll's it); multipart limits (6MB/12MB) sized so the
+  friendly business error wins Tomcat's.
+- Endpoints: `POST /api/teams/{teamId}/logo` (admin), `POST /api/players/me/photo`
+  (own profile), `POST /api/claims` (invite-token claiming; single use, token
+  cleared on success; one profile per account — DB unique indexes decide races
+  as honest 409s; `ACCOUNT_ALREADY_PROFILED` blocks claiming when the account
+  already provisioned a profile). Claim tokens are issued only in the admin
+  registration response.
+- Replacement never deletes the old file on the request path (ops reaps the
+  uploads directory).
 
 ## Ops
 

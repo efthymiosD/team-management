@@ -1,11 +1,11 @@
 package com.decoupledx.teammanagement.team.domain;
-
 import com.decoupledx.common.error.BusinessException;
 import com.decoupledx.common.transaction.TransactionRunner;
 import com.decoupledx.teammanagement.shared.ErrorCode;
 import com.decoupledx.teammanagement.team.adapter.api.TeamMemberInfo;
 import com.decoupledx.teammanagement.team.domain.port.PlayerProfileRepository;
 import com.decoupledx.teammanagement.team.domain.port.TeamAdministrationService;
+import com.decoupledx.teammanagement.team.domain.port.TeamMembershipDataValue;
 import com.decoupledx.teammanagement.team.domain.port.TeamMembershipRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

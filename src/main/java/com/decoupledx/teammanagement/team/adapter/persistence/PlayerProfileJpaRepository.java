@@ -10,5 +10,7 @@ interface PlayerProfileJpaRepository extends JpaRepository<PlayerProfileEntity, 
 
     PlayerProfileEntity findByAccountId(UUID accountId);
 
+    PlayerProfileEntity findByClaimToken(String claimToken);
+
     List<PlayerProfileEntity> findAllByIdIn(@Param("ids") Collection<UUID> ids);
 }

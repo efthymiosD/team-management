@@ -1,9 +1,9 @@
 package com.decoupledx.teammanagement.team.domain;
-
 import com.decoupledx.teammanagement.identity.adapter.api.AccountDirectoryApi;
 import com.decoupledx.teammanagement.identity.adapter.api.AccountId;
 import com.decoupledx.teammanagement.identity.adapter.api.CurrentAccountApi;
 import com.decoupledx.teammanagement.team.domain.port.CurrentPlayerProfile;
+import com.decoupledx.teammanagement.team.domain.port.PlayerProfileDataValue;
 import com.decoupledx.teammanagement.team.domain.port.PlayerProfileRepository;
 import java.time.Clock;
 import java.util.List;
