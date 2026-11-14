@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${locale}">
+<head th:fragment="head(title)">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#10151c" media="(prefers-color-scheme: dark)">
+  <title th:text="${title} != null ? ${title} + ' — ' + #{app.name} : #{app.name}">Team Management</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='0.9em'%20font-size='85'%3E%E2%9A%BD%3C/text%3C/svg%3E">
+  <link rel="stylesheet" th:href="@{/css/team.css}">
+</head>
+<body>
+<div th:fragment="navigation" class="nav-shell">
+  <a class="skip-link" href="#main" th:text="#{nav.skipToContent}">Skip to main content</a>
+  <nav class="topnav" th:attr="aria-label=#{nav.primary}">
+    <div class="nav-inner">
+      <a class="brand" th:href="@{/}">
+        <span class="brand-ball" aria-hidden="true">⚽</span>
+        <span th:text="#{app.name}">Team Management</span>
+      </a>
+      <div class="nav-right">
+        <a class="nav-link" th:unless="${currentUser.authenticated}" th:href="@{/}"
+           th:text="#{nav.home}">Home</a>
+        <a class="nav-link" th:if="${currentUser.authenticated}" th:href="@{/}"
+           th:attr="aria-current='page'" th:text="#{nav.myTeams}">My teams</a>
+        <span class="nav-user" th:if="${currentUser.authenticated}">
+          <span class="visually-hidden" th:text="#{nav.signedInAs} + ': '">Signed in as: </span><span
+            class="nav-user-name" th:text="${currentUser.displayName}">player</span>
+        </span>
+        <span class="badge" th:if="${currentUser.administrator}" th:text="#{nav.admin}">Admin</span>
+        <div class="lang-switch" role="group" th:attr="aria-label=#{nav.language}">
+          <a th:href="@{/(lang=en)}" hreflang="en" lang="en" aria-label="English"
+             th:classappend="${locale == 'en'} ? 'active'"
+             th:attr="aria-current=${locale == 'en'} ? 'true' : null">EN</a>
+          <a th:href="@{/(lang=pl)}" hreflang="pl" lang="pl" aria-label="Polski"
+             th:classappend="${locale == 'pl'} ? 'active'"
+             th:attr="aria-current=${locale == 'pl'} ? 'true' : null">PL</a>
+          <a th:href="@{/(lang=el)}" hreflang="el" lang="el" aria-label="Ελληνικά"
+             th:classappend="${locale == 'el'} ? 'active'"
+             th:attr="aria-current=${locale == 'el'} ? 'true' : null">EL</a>
+        </div>
+        <form th:if="${currentUser.authenticated}" th:action="@{/logout}" method="post" class="inline-form">
+          <button type="submit" class="btn btn-ghost" th:text="#{nav.logout}">Log out</button>
+        </form>
+        <a th:unless="${currentUser.authenticated}" class="btn btn-primary"
+           th:href="@{/oauth2/authorization/keycloak}" th:text="#{nav.login}">Log in</a>
+      </div>
+    </div>
+  </nav>
+</div>
+</body>
+</html>

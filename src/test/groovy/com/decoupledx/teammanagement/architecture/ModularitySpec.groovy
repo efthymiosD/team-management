@@ -23,6 +23,6 @@ class ModularitySpec extends Specification {
                 .collect { it.getDisplayName() }
                 .sort()
         then:
-        modules == ["Identity", "Shared", "Team"]
+        modules == ["Identity", "Shared", "Team", "Webui"]
     }
 }

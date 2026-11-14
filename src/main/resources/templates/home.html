@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${locale}">
+<head th:replace="~{fragments/navigation :: head(#{nav.home})}"></head>
+<body>
+<div th:replace="~{fragments/navigation :: navigation}"></div>
+<main class="container" id="main">
+  <div class="flash" th:if="${message != null}" role="status" th:text="${message}">Team created.</div>
+  <div class="flash flash-error" th:if="${error != null}" role="alert" th:text="${error}">Error</div>
+
+  <section class="hero card" th:if="${!currentUser.authenticated}" aria-labelledby="welcome-heading">
+    <h1 id="welcome-heading" th:text="#{home.welcomeAnonymous}">Welcome to Team Management</h1>
+    <p class="lead" th:text="#{home.loginPrompt}">
+      Organize your five-a-side team, vote on matches and pick the Man of the Match.
+    </p>
+    <a class="btn btn-primary btn-lg btn-block" th:href="@{/oauth2/authorization/keycloak}"
+       th:text="#{home.loginButton}">Sign in with your account</a>
+  </section>
+
+  <th:block th:if="${currentUser.authenticated}">
+    <section class="card" aria-labelledby="teams-heading">
+      <div class="section-head">
+        <h1 id="teams-heading" th:text="#{home.myTeams}">My teams</h1>
+        <span class="count-pill" aria-hidden="true" th:text="${teamCount}">1</span>
+      </div>
+      <p class="muted" th:if="${#lists.isEmpty(myTeams)}" th:text="#{home.noTeams}">
+        You are not a member of any team yet. Create one below.
+      </p>
+      <ul class="team-list" th:unless="${#lists.isEmpty(myTeams)}">
+        <li th:each="team : ${myTeams}">
+          <img class="crest" th:if="${team.logoPath != null}" th:src="${team.logoPath}" alt="">
+          <span class="crest crest-initial" th:if="${team.logoPath == null}" aria-hidden="true"
+                th:text="${#strings.toUpperCase(#strings.substring(team.name, 0, 1))}">F</span>
+          <span class="team-name" th:text="${team.name}">Team name</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="card" aria-labelledby="create-heading">
+      <h2 id="create-heading" th:text="#{home.createTeam.heading}">Create a team</h2>
+      <form th:action="@{/teams}" method="post" class="team-form">
+        <label for="name" th:text="#{home.createTeam.name}">Team name</label>
+        <input type="text" id="name" name="name" required maxlength="200" autocomplete="off"
+               th:placeholder="#{home.createTeam.namePlaceholder}">
+        <button type="submit" class="btn btn-primary btn-block"
+                th:text="#{home.createTeam.submit}">Create team</button>
+      </form>
+    </section>
+  </th:block>
+</main>
+</body>
+</html>

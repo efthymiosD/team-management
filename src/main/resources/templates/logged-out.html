@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${locale}">
+<head th:replace="~{fragments/navigation :: head(#{logged-out.heading})}"></head>
+<body>
+<div th:replace="~{fragments/navigation :: navigation}"></div>
+<main class="container" id="main">
+  <section class="card card-narrow" aria-labelledby="logged-out-heading">
+    <h1 id="logged-out-heading" th:text="#{logged-out.heading}">Signed out</h1>
+    <a class="btn btn-primary btn-block" th:href="@{/}" th:text="#{logged-out.backHome}">
+      Back to the home page
+    </a>
+  </section>
+</main>
+</body>
+</html>

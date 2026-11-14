@@ -13,4 +13,6 @@ public interface TeamApi {
     TeamWithMembersInfo team(UUID teamId);
 
     List<TeamInfo> myTeams();
+
+    TeamWithMembersInfo create(String name);
 }

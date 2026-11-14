@@ -1,0 +1,509 @@
+/* ==========================================================================
+   Team Management — server-rendered UI stylesheet.
+   Professional SaaS-grade theme: neutral slate base, a single deep-green
+   accent, corporate chrome, hairline borders. Mobile-first; automatic light
+   & dark schemes via prefers-color-scheme; no JavaScript required. Text
+   colors are contrast checked against their backgrounds (WCAG 2.2 AA,
+   >= 4.5:1 for body copy; ratios documented inline).
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --text: #16181d;
+  --muted: #5c6370;
+  --border: #e2e5ea;
+  --heading: #101828;
+  --link: #166534;
+  --accent: #166534;          /* deep green vs white text: 6.4:1 */
+  --accent-hover: #14532d;
+  --accent-active: #0f3d20;
+  --accent-contrast: #ffffff;
+  --accent-soft: #e9f3ec;
+  --crest-text: #166534;
+  --focus: #166534;
+  --focus-on-nav: #166534;    /* on the white chrome, dark-green ring */
+  --nav-bg: #ffffff;
+  --nav-border: #e2e5ea;
+  --nav-text: #101828;
+  --nav-muted: #5c6370;
+  --nav-hover-bg: #f0f2f5;
+  --success-bg: #eaf5ee;
+  --success-border: #166534;
+  --danger-bg: #fdeceb;
+  --danger-border: #b3463c;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0b0e13;
+    --card: #131820;
+    --text: #e6e9ef;
+    --muted: #98a2b3;
+    --border: #262d36;
+    --heading: #f3f5f8;
+    --link: #4ade80;
+    --accent: #4ade80;        /* bright green vs near-black text: 9.9:1 */
+    --accent-hover: #34d273;
+    --accent-active: #22c55e;
+    --accent-contrast: #0b0e13;
+    --accent-soft: #16261b;
+    --crest-text: #4ade80;
+    --focus: #4ade80;
+    --focus-on-nav: #4ade80;   /* overrides the light-chrome focus color above */
+    --nav-bg: #10151c;         /* elevated dark bar on the dark page */
+    --nav-border: #262d36;
+    --nav-text: #f3f5f8;
+    --nav-muted: #98a2b3;
+    --nav-hover-bg: #1a212b;
+    --success-bg: #10251a;
+    --success-border: #2f7d45;
+    --danger-bg: #2b1412;
+    --danger-border: #8f514b;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* ---------- base ---------- */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  margin: 0 0 0.6rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--heading);
+  overflow-wrap: break-word;
+}
+
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.15rem; }
+h3 { font-size: 1rem; }
+
+a { color: var(--link); }
+a:hover { text-underline-offset: 2px; }
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.topnav :focus-visible { outline-color: var(--focus-on-nav); }
+
+::placeholder { color: var(--muted); opacity: 1; }
+
+/* ---------- utilities ---------- */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: -3.5rem;
+  left: 0.75rem;
+  z-index: 100;
+  background: var(--text);
+  color: var(--bg);
+  padding: 0.6rem 1rem;
+  border-radius: 0 0 0.375rem 0.375rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skip-link:focus { top: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .skip-link { transition: top 120ms ease; }
+}
+
+/* ---------- navigation ---------- */
+
+/* Corporate chrome: a light, bordered bar in light mode; an elevated dark
+   bar in dark mode. All colors flow from the nav-* tokens above. */
+
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--nav-bg);
+  border-bottom: 1px solid var(--nav-border);
+}
+
+.nav-inner {
+  max-width: 62rem;
+  margin-inline: auto;
+  padding: 0.65rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--nav-text);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.brand-ball { font-size: 1.05rem; }
+
+/* On narrow phones the action row drops below the brand as its own line. */
+.nav-right {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--nav-border);
+}
+
+@media (min-width: 48em) {
+  .nav-inner { padding: 0.65rem 1.25rem; }
+  .nav-right {
+    flex: 0 1 auto;
+    margin-left: auto;
+    padding-top: 0;
+    border-top: none;
+  }
+  h1 { font-size: 1.75rem; }
+  h2 { font-size: 1.25rem; }
+}
+
+.nav-link {
+  color: var(--nav-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.375rem;
+}
+
+.nav-link:hover {
+  color: var(--nav-text);
+  background: var(--nav-hover-bg);
+}
+
+/* Current page: filled pill + heavier weight (not color alone). */
+.nav-link[aria-current="page"] {
+  color: var(--nav-text);
+  font-weight: 600;
+  background: var(--nav-hover-bg);
+}
+
+.nav-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--nav-border);
+  border-radius: 0.375rem;
+  background: var(--nav-hover-bg);
+  color: var(--nav-text);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* Subtle presence dot in the brand accent. */
+.nav-user::before {
+  content: "";
+  flex: none;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.nav-user-name { overflow-wrap: anywhere; }
+
+.badge {
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+  background: var(--accent-soft);
+  color: var(--crest-text);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-inline-start: 0.1rem;
+  padding-inline-start: 0.6rem;
+  border-inline-start: 1px solid var(--nav-border);
+}
+
+.lang-switch a {
+  color: var(--nav-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.375rem;
+}
+
+.lang-switch a:hover {
+  color: var(--nav-text);
+  background: var(--nav-hover-bg);
+}
+
+/* Active language: filled pill + underline (not color alone). */
+.lang-switch a.active {
+  color: var(--nav-text);
+  background: var(--nav-hover-bg);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.inline-form { display: inline-flex; margin: 0; }
+
+/* ---------- buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  padding: 0.55rem 1rem;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:active { background: var(--accent-active); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--nav-text);
+  border-color: var(--nav-border);
+}
+
+.btn-ghost:hover { background: var(--nav-hover-bg); }
+
+.btn-lg {
+  padding: 0.7rem 1.4rem;
+  font-size: 1rem;
+  border-radius: 0.55rem;
+}
+
+/* Full-width tap targets on phones, natural width from 36em up. */
+.btn-block { width: 100%; }
+
+@media (min-width: 36em) {
+  .btn-block { width: auto; }
+}
+
+/* ---------- layout ---------- */
+
+.container {
+  width: 100%;
+  max-width: 62rem;
+  margin-inline: auto;
+  padding: 1.25rem 1rem 3rem;
+}
+
+@media (min-width: 48em) {
+  .container { padding: 2.25rem 1.25rem 4rem; }
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+@media (min-width: 48em) {
+  .card { padding: 1.75rem 2rem; }
+}
+
+.card-narrow {
+  max-width: 30rem;
+  margin-inline: auto;
+}
+
+/* Hero: a single quiet accent wash — no decorative stripes. */
+.hero {
+  background: linear-gradient(180deg, var(--accent-soft) 0%, var(--card) 100%);
+}
+
+.lead {
+  color: var(--muted);
+  font-size: 1.02rem;
+  max-width: 46ch;
+  margin: 0 0 1.25rem;
+}
+
+/* ---------- feedback ---------- */
+
+.muted { color: var(--muted); }
+
+.flash {
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-left-width: 3px;
+  border-radius: 0.5rem;
+  padding: 0.7rem 1rem;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+.flash-error {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+}
+
+/* ---------- team list ---------- */
+
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-head h1 { margin: 0; }
+
+.count-pill {
+  background: var(--accent-soft);
+  color: var(--crest-text);
+  border-radius: 0.375rem;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.team-list {
+  list-style: none;
+  margin: 0.25rem 0;
+  padding: 0;
+}
+
+.team-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-inline: -0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.team-list li:last-child { border-bottom: none; }
+
+@media (hover: hover) {
+  .team-list li:hover { background: var(--nav-hover-bg); }
+}
+
+.crest {
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.375rem;
+  object-fit: cover;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+}
+
+.crest-initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--crest-text);
+}
+
+.team-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- create-team form ---------- */
+
+.team-form {
+  display: grid;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.team-form label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.team-form input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font: inherit;
+  font-size: 0.9375rem;
+  color: var(--text);
+  background: var(--card);
+}
+
+.team-form input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+@media (min-width: 36em) {
+  .team-form { grid-template-columns: auto 1fr auto; align-items: center; }
+  .team-form .btn-block { width: auto; }
+}
