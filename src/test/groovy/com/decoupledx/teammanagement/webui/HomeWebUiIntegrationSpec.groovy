@@ -26,6 +26,10 @@ class HomeWebUiIntegrationSpec extends PostgresIntegrationSpec {
     @Autowired
     MockMvc mvc
 
+    def cleanup() {
+        truncate("team_memberships", "player_profiles", "teams")
+    }
+
     def "anonymous home shows the login call to action"() {
         expect:
         mvc.perform(get("/"))

@@ -50,11 +50,17 @@ class TeamMediaIntegrationSpec extends PostgresIntegrationSpec {
         json.readTree(createTeam(account, name)).get("teamId").textValue()
     }
 
+    /** Unique suffix per call: spec classes share one DB and one JVM run —
+     *  leftover teams from other specs must never collide (CI caught it). */
+    private static String uniqueName(String name) {
+        return name + " " + UUID.randomUUID().toString().substring(0, 8);
+    }
+
     String createTeam(String account, String name) {
         mvc.perform(post("/api/teams")
                 .with(JwtSupport.account(account))
                 .contentType("application/json")
-                .content('{"name":"' + name + '"}'))
+                .content('{"name":"' + uniqueName(name) + '"}'))
                 .andExpect(status().isCreated())
                 .andReturn().response.contentAsString
     }
