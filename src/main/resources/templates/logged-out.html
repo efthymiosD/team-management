@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${locale}">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${locale}" th:data-theme="${theme}">
 <head th:replace="~{fragments/navigation :: head(#{logged-out.heading})}"></head>
 <body>
 <div th:replace="~{fragments/navigation :: navigation}"></div>

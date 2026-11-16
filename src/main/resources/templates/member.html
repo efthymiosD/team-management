@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${locale}" th:data-theme="${theme}">
+<head th:replace="~{fragments/navigation :: head(${member.fullName})}"></head>
+<body>
+<div th:replace="~{fragments/navigation :: navigation}"></div>
+<main class="container" id="main">
+  <div class="flash" th:if="${message != null}" role="status" th:text="${message}"></div>
+  <div class="flash flash-error" th:if="${error != null}" role="alert" th:text="${error}"></div>
+
+  <p class="crumb"><a th:href="@{/teams/{teamId}(teamId=${teamId})}" th:text="#{member.backToTeam}">← Team</a></p>
+
+  <section class="card">
+    <div class="profile-head">
+      <img class="profile-photo" th:if="${member.photoPath != null}" th:src="${member.photoPath}" alt="">
+      <span class="profile-photo profile-photo-ph" th:if="${member.photoPath == null}" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8.2" r="4.2"/><path d="M12 13.6c-4.6 0-8 2.6-8 6v.9h16v-.9c0-3.4-3.4-6-8-6z"/></svg>
+      </span>
+      <div>
+        <h1 th:text="${member.fullName}">Name</h1>
+        <p class="member-nat-lg" th:if="${member.nationality != null}">
+          <span aria-hidden="true" th:text="${nationalityFlag}">🇬🇷</span>&nbsp;<span th:text="${nationalityName}">Greece</span>
+        </p>
+        <span class="role-badge" th:text="${member.admin} ? #{team.role.admin} : #{member.role.player}">Player</span>
+        <!-- §13.2 (approved): pending state declared up front. -->
+        <span class="pm-chip" th:if="${!member.claimed}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+          <span th:text="#{member.pendingDetail}">Pending — not linked to an account yet</span>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- §13.2 (approved): the claim affordance is its own admins-only card —
+       minting returns to the team page where the fresh link is shown once. -->
+  <section class="card" th:if="${member.viewerIsAdmin and !member.claimed}">
+    <div class="section-head">
+      <h2 th:text="#{member.claimLink.heading}">Claim link</h2>
+      <span class="lock-pill" th:text="#{member.claimLink.adminsOnly}">🔒 Team admins only</span>
+    </div>
+    <p class="muted" th:text="#{member.claimLink.note}">Mint a fresh one-time link so this player can claim the profile and link an account.</p>
+    <div class="pm-claimrow">
+      <form th:action="@{/teams/{teamId}/members/{profileId}/claim-link(teamId=${teamId}, profileId=${member.profileId})}"
+            method="post" class="inline-form">
+        <input type="hidden" name="source" value="member">
+        <button type="submit" class="btn btn-small btn-ghost" th:text="#{member.claimLink.generate}">New claim link</button>
+      </form>
+      <p class="hint" th:text="#{member.claimLink.oneActive}">Regenerating replaces the previous link — only one is ever active.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2 th:text="#{profile.contact.heading}">Contact details</h2>
+      <span class="lock-pill" data-testid="contact-locked" th:if="${member.phone == null}"
+            th:text="#{member.contactLocked}">🔒 Team admins only</span>
+    </div>
+    <dl class="detail-list" th:if="${member.phone != null}">
+      <div>
+        <dt th:text="#{profile.phone}">Phone</dt>
+        <dd>
+          <a class="phone-link" th:href="'tel:' + ${memberPhoneHref}"
+             th:text="${memberPhoneDisplay}">+48 600 123 456</a>
+        </dd>
+      </div>
+      <div th:if="${member.birthDate != null}">
+        <dt th:text="#{profile.birthday}">Birthday</dt>
+        <dd>
+          <span th:text="${memberBirthDate}">14.03.1995</span>
+          <span class="muted" th:text="${memberAge}">31 years old</span>
+        </dd>
+      </div>
+    </dl>
+    <p class="muted" th:if="${member.phone == null}" th:text="#{member.contactAdminsOnly}">
+      Contact details are visible to team administrators only.
+    </p>
+  </section>
+</main>
+</body>
+</html>

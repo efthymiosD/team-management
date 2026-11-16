@@ -103,6 +103,8 @@ class SecurityConfig {
                                 "/",
                                 "/logged-out")
                         .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/theme")
+                        .permitAll()
                         .requestMatchers(
                                 "/error",
                                 "/favicon.ico",
@@ -113,23 +115,15 @@ class SecurityConfig {
                                 "/uploads/**",
                                 "/vendor/**",
                                 "/webjars/**",
-                                // Chrome DevTools probes /.well-known/appspecific/
-                                // com.chrome.devtools.json on every page load while
-                                // devtools is open; letting it reach the auth flow
-                                // hijacks the post-login redirect onto a 404.
                                 "/.well-known/**")
                         .permitAll()
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(endpoint -> endpoint
                                 .baseUri("/oauth2/authorization")
-                                // Always prompt for credentials at Keycloak: a stale
                                 // SSO cookie must never silently re-login a user who
-                                // just failed (or gave up on) a previous attempt.
                                 .authorizationRequestResolver(new PromptLoginAuthorizationRequestResolver(
                                         clientRegistrationRepository, "/oauth2/authorization")))
-                        // Lift Keycloak realm roles into session authorities
-                        // (ROLE_ADMIN) for the browser counterpart of the JWT path.
                         .userInfoEndpoint(userInfo -> userInfo
                                 .oidcUserService(new RealmRoleOidcUserService()))
                         .failureHandler(failedLoginRedirect))

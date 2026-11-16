@@ -14,7 +14,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 class TeamProfileManagementServiceImpl implements TeamProfileManagementService {
 
-    private final TeamPermissions permissions;
+    private final TeamPermissionsService permissions;
     private final TeamRepository teams;
     private final TeamQueryService teamQuery;
     private final Clock clock;

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${locale}" th:data-theme="${theme}">
+<head th:replace="~{fragments/navigation :: head(#{invalid.heading})}"></head>
+<body>
+<div th:replace="~{fragments/navigation :: navigation}"></div>
+<main class="container" id="main">
+  <!-- Approved mockup §12.3: one page for used / revoked / unknown tokens —
+       no oracle between the reasons, token never echoed back. -->
+  <section class="card card-narrow empty-state">
+    <span class="empty-glyph" aria-hidden="true">🔒</span>
+    <h1 th:text="#{invalid.heading}">This link is no longer valid</h1>
+    <p class="ct-sub muted" th:text="#{invalid.subline}">
+      It may have been used already or revoked — ask a team admin for a new one.
+    </p>
+    <a class="btn btn-ghost" th:href="@{/}" th:text="#{invalid.back}">Back to home</a>
+  </section>
+</main>
+</body>
+</html>

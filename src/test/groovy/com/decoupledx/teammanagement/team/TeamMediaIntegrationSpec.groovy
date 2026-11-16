@@ -37,11 +37,28 @@ class TeamMediaIntegrationSpec extends PostgresIntegrationSpec {
     @Autowired
     ObjectMapper json
 
+    /** The uploads dir the test JVM is configured with (a per-JVM temp dir). */
+    @org.springframework.beans.factory.annotation.Value("\${app.uploads.dir}")
+    String uploadDir
+
+
+    /** Joins the member account through a fresh one-time invite (as PLAYER). */
+    void joinViaInvite(String adminAccount, String memberAccount, String teamId) {
+        def body = mvc.perform(post("/api/teams/" + teamId + "/invites")
+                .with(JwtSupport.account(adminAccount)))
+                .andExpect(status().isCreated())
+                .andReturn().response.contentAsString
+        def rawToken = json.readTree(body).get("rawToken").textValue()
+        mvc.perform(post("/api/teams/" + teamId + "/join/" + rawToken)
+                .with(JwtSupport.account(memberAccount)))
+                .andExpect(status().isCreated())
+    }
+
     void cleanup() {
-        truncate("team_memberships", "player_profiles", "teams")
+        truncate("team_invites", "team_memberships", "player_profiles", "teams")
         // Uploaded bytes are NOT in the database: remove test-generated files
-        // so the uploads directory (gitignored) never accumulates test noise.
-        new File("uploads").listFiles()?.each { file -> file.delete() }
+        // so the test uploads dir (a per-JVM temp dir) never accumulates noise.
+        new File(uploadDir).listFiles()?.each { file -> file.delete() }
     }
 
     // --- helpers -----------------------------------------------------------
@@ -78,7 +95,7 @@ class TeamMediaIntegrationSpec extends PostgresIntegrationSpec {
 
     /** Server-side stored file count for test pollution checks. */
     int storedUploads() {
-        def dir = new File("uploads")
+        def dir = new File(uploadDir)
         dir.exists() && dir.isDirectory() ? dir.listFiles().size() : 0
     }
 
@@ -100,7 +117,7 @@ class TeamMediaIntegrationSpec extends PostgresIntegrationSpec {
                 .andReturn().response.contentAsString)
         def logoPath = view.get("logoPath").textValue()
         and: "a real file exists and is SERVED read-only without authentication"
-        new File("uploads", logoPath.replaceFirst("/uploads/", "")).exists()
+        new File(uploadDir, logoPath.replaceFirst("/uploads/", "")).exists()
         mvc.perform(get(logoPath))
                 .andExpect(status().isOk())
     }
@@ -130,8 +147,7 @@ class TeamMediaIntegrationSpec extends PostgresIntegrationSpec {
     def "logo upload is admin-only (403 for plain members and outsiders)"() {
         given:
         def teamId = teamIdOf("creator-1", "FC Dynamo")
-        mvc.perform(post("/api/teams/" + teamId + "/members/join")
-                .with(JwtSupport.account("member-1"))).andExpect(status().isCreated())
+        joinViaInvite("creator-1", "member-1", teamId)
         def logo = new MockMultipartFile("logo", "club.png", "image/png", [0x89] as byte[])
         expect: "a plain member may not replace the logo"
         mvc.perform(multipart("/api/teams/" + teamId + "/logo").file(logo)
@@ -150,8 +166,7 @@ class TeamMediaIntegrationSpec extends PostgresIntegrationSpec {
     def "account uploads its own photo: persisted on the profile, served"() {
         given:
         def teamId = teamIdOf("creator-1", "FC Dynamo")
-        mvc.perform(post("/api/teams/" + teamId + "/members/join")
-                .with(JwtSupport.account("member-1"))).andExpect(status().isCreated())
+        joinViaInvite("creator-1", "member-1", teamId)
         def photo = new MockMultipartFile("photo", "me.png", "image/png", [0x89, 0x50] as byte[])
         when:
         mvc.perform(multipart("/api/players/me/photo").file(photo)
@@ -199,6 +214,46 @@ class TeamMediaIntegrationSpec extends PostgresIntegrationSpec {
                 .andReturn().response.contentAsString
     }
 
+    def "regenerating a pending member's claim link kills the previous one"() {
+        given:
+        def teamId = teamIdOf("creator-1", "FC Dynamo")
+        def rawToken = json.readTree(registerPlayer("creator-1", teamId, "Jan Nowak"))
+                .get("claimToken").textValue()
+        def profileId = json.readTree(teamView(teamId)).get("members").toList()[1]
+                .get("profileId").textValue()
+        when: "the admin regenerates the personal claim link"
+        def regenerated = mvc.perform(post("/api/teams/" + teamId + "/members/" + profileId
+                + "/claim-link").with(JwtSupport.account("creator-1")))
+                .andExpect(status().isOk())
+                .andReturn().response.contentAsString
+        def freshToken = json.readTree(regenerated).get("claimToken").textValue()
+        then: "the fresh token is different and WORKS"
+        freshToken != rawToken
+        def claimed = mvc.perform(post("/api/claims").with(JwtSupport.account("claimer-1"))
+                .contentType("application/json")
+                .content('{"claimToken":"' + freshToken + '"}'))
+                .andExpect(status().isOk())
+        claimed != null
+        and: "the PREVIOUS token is dead"
+        mvc.perform(post("/api/claims").with(JwtSupport.account("claimer-2"))
+                .contentType("application/json")
+                .content('{"claimToken":"' + rawToken + '"}'))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath('$.title').value("CLAIM_TOKEN_UNKNOWN"))
+    }
+
+    def "claim-link regeneration is admin-gated"() {
+        given:
+        def teamId = teamIdOf("creator-1", "FC Dynamo")
+        registerPlayer("creator-1", teamId, "Jan Nowak")
+        def profileId = json.readTree(teamView(teamId)).get("members").toList()[1]
+                .get("profileId").textValue()
+        expect:
+        mvc.perform(post("/api/teams/" + teamId + "/members/" + profileId + "/claim-link")
+                .with(JwtSupport.account("outsider")))
+                .andExpect(status().isForbidden())
+    }
+
     def "claiming an unknown token is 404 CLAIM_TOKEN_UNKNOWN"() {
         expect:
         mvc.perform(post("/api/claims").with(JwtSupport.account("someone"))
@@ -208,20 +263,30 @@ class TeamMediaIntegrationSpec extends PostgresIntegrationSpec {
                 .andExpect(jsonPath('$.title').value("CLAIM_TOKEN_UNKNOWN"))
     }
 
-    def "claiming rejects an account that already has a player profile (409)"() {
+    def "claiming a pending member with an account that ALREADY has a profile merges (their profile wins)"() {
         given:
         def teamId = teamIdOf("creator-1", "FC Dynamo")
-        def claimToken = json.readTree(registerPlayer("creator-1", teamId, "Jan Nowak"))
+        def rawToken = json.readTree(registerPlayer("creator-1", teamId, "Jan Nowak"))
                 .get("claimToken").textValue()
-        and: "the claimer already provisioned a profile by joining"
-        mvc.perform(post("/api/teams/" + teamId + "/members/join")
-                .with(JwtSupport.account("claimer-1"))).andExpect(status().isCreated())
-        expect:
-        mvc.perform(post("/api/claims").with(JwtSupport.account("claimer-1"))
+        and: "the claimer already provisioned a profile by joining with a DIFFERENT invite"
+        joinViaInvite("creator-1", "claimer-1", teamId)
+        expect: "the claim SUCCEEDS now (merge — no ACCOUNT_ALREADY_PROFILED rejection)"
+        def claimed = mvc.perform(post("/api/claims").with(JwtSupport.account("claimer-1"))
                 .contentType("application/json")
-                .content('{"claimToken":"' + claimToken + '"}'))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath('$.title').value("ACCOUNT_ALREADY_PROFILED"))
+                .content('{"claimToken":"' + rawToken + '"}'))
+                .andExpect(status().isOk())
+                .andReturn().response.contentAsString
+        and: "the placeholder is deleted: the roster holds creator + the claimer's EXISTING profile"
+        def members = json.readTree(teamView(teamId)).get("members").toList()
+        members.size() == 2
+        members.findAll { it.get("claimed").booleanValue() }.size() == 2
+        and: "the claim returned the EXISTING profile (not the deleted placeholder)"
+        def claimerRow = json.readTree(mvc.perform(get("/api/teams/" + teamId)
+                .with(JwtSupport.account("claimer-1")))
+                .andExpect(status().isOk())
+                .andReturn().response.contentAsString).get("members").toList()
+                .find { it.get("mine").booleanValue() }
+        claimerRow.get("profileId").textValue() == json.readTree(claimed).get("profileId").textValue()
     }
 
     def "uploads never leave orphan test bytes: directory only holds served files"() {

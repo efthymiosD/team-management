@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${locale}">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${locale}" th:data-theme="${theme}">
 <head th:replace="~{fragments/navigation :: head(#{nav.home})}"></head>
 <body>
 <div th:replace="~{fragments/navigation :: navigation}"></div>
@@ -30,7 +30,8 @@
           <img class="crest" th:if="${team.logoPath != null}" th:src="${team.logoPath}" alt="">
           <span class="crest crest-initial" th:if="${team.logoPath == null}" aria-hidden="true"
                 th:text="${#strings.toUpperCase(#strings.substring(team.name, 0, 1))}">F</span>
-          <span class="team-name" th:text="${team.name}">Team name</span>
+          <a class="team-name" th:href="@{/teams/{teamId}(teamId=${team.teamId})}"
+             th:text="${team.name}">Team name</a>
         </li>
       </ul>
     </section>
@@ -40,7 +41,8 @@
       <form th:action="@{/teams}" method="post" class="team-form">
         <label for="name" th:text="#{home.createTeam.name}">Team name</label>
         <input type="text" id="name" name="name" required maxlength="200" autocomplete="off"
-               th:placeholder="#{home.createTeam.namePlaceholder}">
+               th:placeholder="#{home.createTeam.namePlaceholder}"
+               th:value="${teamNameDraft}">
         <button type="submit" class="btn btn-primary btn-block"
                 th:text="#{home.createTeam.submit}">Create team</button>
       </form>

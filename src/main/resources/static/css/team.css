@@ -33,6 +33,7 @@
   --success-border: #166534;
   --danger-bg: #fdeceb;
   --danger-border: #b3463c;
+  --danger-solid: #b3463c;   /* filled Remove: #b3463c vs white text ≥ 4.5:1 */
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
 }
 
@@ -63,6 +64,7 @@
     --success-border: #2f7d45;
     --danger-bg: #2b1412;
     --danger-border: #8f514b;
+    --danger-solid: #c9564b;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   }
 }
@@ -320,13 +322,39 @@ a:hover { text-underline-offset: 2px; }
 .btn-primary:hover { background: var(--accent-hover); }
 .btn-primary:active { background: var(--accent-active); }
 
+/* Secondary actions are COLORED (accent-tinted, theme-following) — a colored
+   button signals the action is eligible (owner feedback 2026-11-15). Only
+   genuinely unavailable actions are grayed out AND disabled. */
 .btn-ghost {
-  background: transparent;
-  color: var(--nav-text);
-  border-color: var(--nav-border);
+  background: var(--accent-soft);
+  color: var(--crest-text);
+  border-color: var(--accent);
 }
 
-.btn-ghost:hover { background: var(--nav-hover-bg); }
+.btn-ghost:hover { background: var(--accent-soft); border-color: var(--accent-hover); }
+
+/* Destructive-but-POSSIBLE = filled red (owner feedback 2026-11-15). Grayed
+   out only when disabled — the [disabled] rules below take over. */
+.btn-danger {
+  background: var(--danger-solid);
+  color: #ffffff;
+  border-color: var(--danger-solid);
+}
+
+.btn-danger:hover {
+  background: var(--danger-border);
+  border-color: var(--danger-border);
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  background: var(--nav-hover-bg);
+  color: var(--muted);
+  border-color: var(--border);
+  cursor: not-allowed;
+  opacity: 0.6;
+  text-decoration: none;
+}
 
 .btn-lg {
   padding: 0.7rem 1.4rem;
@@ -506,4 +534,650 @@ a:hover { text-underline-offset: 2px; }
 @media (min-width: 36em) {
   .team-form { grid-template-columns: auto 1fr auto; align-items: center; }
   .team-form .btn-block { width: auto; }
+}
+
+/* ======================================================================
+   Slice 3.5 review redesign (approved mockups §1–§6):
+   identity header, players GRID with fixed-size photos, member-profile
+   view, invite link with copy state, full profile form with the
+   nationality combo, and the join hero.
+   Size spec (approved §8): single 64em breakpoint.
+   ====================================================================== */
+
+/* ---------- team identity header ---------- */
+
+.team-head {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+}
+
+.team-head-text { min-width: 0; }
+
+.team-logo {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.6rem;
+  border: 1px solid var(--border);
+  background: var(--accent-soft);
+  color: var(--crest-text);
+  font-weight: 700;
+  object-fit: cover;
+  width: 64px;
+  height: 64px;
+  font-size: 1.35rem;
+  overflow: hidden;
+}
+
+.team-meta { color: var(--muted); font-size: 0.92rem; margin: 0; }
+
+.upload-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+/* ---------- players grid ---------- */
+
+.player-grid {
+  list-style: none;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fill, minmax(6.4rem, 1fr));
+}
+
+.member-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.member-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.45rem;
+  padding: 0.85rem 0.5rem 0.8rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  text-decoration: none;
+  color: var(--text);
+  min-width: 0;
+}
+
+@media (hover: hover) {
+  .member-card:hover { border-color: var(--accent); }
+}
+
+.member-card:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* Fixed-size photos (approved §1/§8): 72px mobile, 96px ≥64em. */
+.member-photo {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.member-photo-ph { background: var(--accent-soft); }
+.member-photo-ph svg { width: 55%; height: 55%; color: var(--muted); }
+
+.member-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.member-nat {
+  font-size: 0.75rem;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.pill-row {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.you-pill {
+  padding: 0.08rem 0.5rem;
+  border-radius: 0.35rem;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.role-badge {
+  padding: 0.08rem 0.5rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--card);
+  white-space: nowrap;
+}
+
+.tile-actions {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.admin-note { font-size: 0.85rem; margin: 0.95rem 0 0; }
+
+/* ---------- invite link (mockup §4) ---------- */
+
+.invite-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.invite-link {
+  flex: 1 1 18rem;
+  min-width: 0;
+  display: block;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
+.invite-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.copy-note {
+  margin: 0.65rem 0 0;
+  color: var(--crest-text);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.hint { color: var(--muted); font-size: 0.82rem; margin: 0.5rem 0 0; }
+
+.flash-warn {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-left-width: 3px;
+  border-radius: 0.5rem;
+  padding: 0.7rem 1rem;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+/* ---------- member + profile headers (mockups §2, §6) ---------- */
+
+.profile-head {
+  display: flex;
+  gap: 1.15rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.profile-photo {
+  flex: none;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.profile-photo-ph { background: var(--accent-soft); }
+.profile-photo-ph svg { width: 52%; height: 52%; color: var(--muted); }
+
+.member-nat-lg { color: var(--muted); font-size: 1rem; margin: 0.1rem 0 0.5rem; }
+
+.crumb { margin: 0 0 1rem; font-size: 0.92rem; }
+
+.lock-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 0.35rem;
+  background: var(--accent-soft);
+  color: var(--crest-text);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.detail-list { margin: 0; display: grid; gap: 0.8rem; }
+.detail-list > div { display: grid; grid-template-columns: 7rem 1fr; gap: 0.75rem; align-items: baseline; }
+.detail-list dt { color: var(--muted); font-size: 0.85rem; font-weight: 600; }
+.detail-list dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+
+/* ---------- profile form (mockup §6) ---------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1.05rem;
+}
+
+.field label { font-size: 0.9rem; font-weight: 500; }
+
+.input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font: inherit;
+  font-size: 0.9375rem;
+  color: var(--text);
+  background: var(--card);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.input-readonly { background: var(--bg); color: var(--muted); }
+
+.lock-row { display: flex; align-items: center; gap: 0.5rem; }
+.lock-row .input { flex: 1; min-width: 0; }
+
+.combo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--card);
+  padding: 0.45rem 0.7rem;
+  min-width: 0;
+}
+
+.combo:focus-within {
+  border-color: var(--accent);
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.combo-flag { font-size: 1.05rem; width: 1.5rem; text-align: center; flex: none; }
+
+.combo-flag-empty {
+  width: 1.05rem;
+  height: 1.05rem;
+  border: 1.5px dashed var(--muted);
+  border-radius: 50%;
+  opacity: 0.75;
+}
+
+.combo-input {
+  border: none;
+  background: transparent;
+  padding: 0;
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.9375rem;
+  color: var(--text);
+}
+
+.combo-input:focus { outline: none; }
+
+/* ---------- join hero (mockup §5) ---------- */
+
+.join-hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.join-logo {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.85rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  color: var(--crest-text);
+  font-weight: 700;
+  width: 96px;
+  height: 96px;
+  font-size: 2.1rem;
+  object-fit: cover;
+  overflow: hidden;
+  margin-bottom: 0.4rem;
+}
+
+.join-hero form { width: 100%; margin-top: 0.9rem; }
+
+.card-narrow { max-width: 30rem; margin-inline: auto; }
+
+.btn-lg { padding: 0.7rem 1.4rem; font-size: 1rem; border-radius: 0.55rem; }
+.btn-block { width: 100%; }
+
+/* ---------- approved size spec (§8): single ≥64em step ---------- */
+
+@media (min-width: 64em) {
+  .team-logo { width: 80px; height: 80px; font-size: 1.7rem; }
+  .member-photo { width: 96px; height: 96px; }
+  .profile-photo { width: 112px; height: 112px; }
+  .join-logo { width: 120px; height: 120px; font-size: 2.7rem; }
+  .player-grid { grid-template-columns: repeat(auto-fill, minmax(8.6rem, 1fr)); gap: 1.1rem; }
+  .member-name { font-size: 0.9rem; }
+  .detail-list > div { grid-template-columns: 7rem 1fr; }
+}
+
+/* ======================================================================
+   Manual theme switch (approved mockup §11). The data-theme attribute is
+   set SERVER-SIDE from the theme cookie, so the explicit choice always
+   wins over prefers-color-scheme; these attribute rules live at the END of
+   the file to win the same-specificity cascade against the media query
+   above. Auto = no attribute at all — the media query stays the fallback.
+   ====================================================================== */
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --text: #16181d;
+  --muted: #5c6370;
+  --border: #e2e5ea;
+  --heading: #101828;
+  --link: #166534;
+  --accent: #166534;
+  --accent-hover: #14532d;
+  --accent-active: #0f3d20;
+  --accent-contrast: #ffffff;
+  --accent-soft: #e9f3ec;
+  --crest-text: #166534;
+  --focus: #166534;
+  --focus-on-nav: #166534;
+  --nav-bg: #ffffff;
+  --nav-border: #e2e5ea;
+  --nav-text: #101828;
+  --nav-muted: #5c6370;
+  --nav-hover-bg: #f0f2f5;
+  --success-bg: #eaf5ee;
+  --success-border: #166534;
+  --danger-bg: #fdeceb;
+  --danger-border: #b3463c;
+  --danger-solid: #b3463c;   /* filled Remove: #b3463c vs white text ≥ 4.5:1 */
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b0e13;
+  --card: #131820;
+  --text: #e6e9ef;
+  --muted: #98a2b3;
+  --border: #262d36;
+  --heading: #f3f5f8;
+  --link: #4ade80;
+  --accent: #4ade80;
+  --accent-hover: #34d273;
+  --accent-active: #22c55e;
+  --accent-contrast: #0b0e13;
+  --accent-soft: #16261b;
+  --crest-text: #4ade80;
+  --focus: #4ade80;
+  --focus-on-nav: #4ade80;
+  --nav-bg: #10151c;
+  --nav-border: #262d36;
+  --nav-text: #f3f5f8;
+  --nav-muted: #98a2b3;
+  --nav-hover-bg: #1a212b;
+  --success-bg: #10251a;
+  --success-border: #2f7d45;
+  --danger-bg: #2b1412;
+  --danger-border: #8f514b;
+  --danger-solid: #c9564b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* The switch control: compact segmented radiogroup in nav-right. */
+
+.ts-theme {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--nav-border);
+  border-radius: 0.5rem;
+  background: var(--nav-hover-bg);
+}
+
+.ts-opt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--nav-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+  padding: 0.3rem 0.65rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 44px;
+}
+
+.ts-opt[aria-checked="true"] {
+  background: var(--card);
+  color: var(--nav-text);
+  box-shadow: var(--shadow), 0 0 0 1px var(--nav-border);
+}
+
+.ts-opt:focus-visible {
+  outline: 2px solid var(--focus-on-nav);
+  outline-offset: 1px;
+}
+
+@media (max-width: 36em) {
+  .ts-theme { flex: 1 1 auto; }
+  .ts-opt { flex: 1 1 0; }
+}
+
+/* ---------- birthday cake badge + phone link (owner feedback 2026-11-15) -- */
+
+.member-card { position: relative; }
+
+/* The cake sits on TOP of the card's LEFT edge (§13.1: the pending clock
+   owns the top-right). */
+
+.phone-link {
+  color: var(--link);
+  font-weight: 600;
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.phone-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- rename form (owner feedback 2026-11-15) ---------------------- */
+
+.rename-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.rename-form .input { flex: 1 1 14rem; min-width: 0; }
+
+/* ---------- §12 claim / invalid-link pages (approved mockups) ------------- */
+
+.empty-state {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.empty-glyph { font-size: 2.6rem; line-height: 1; margin-bottom: 0.55rem; }
+
+.ct-sub { max-width: 36ch; margin: 0.15rem 0 1.25rem; }
+
+/* ---------- §12.1 invite + add-member (approved mockups) ------------------ */
+
+.invite-list { list-style: none; margin: 0.75rem 0; padding: 0; }
+.invite-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.invite-list li:last-child { border-bottom: none; }
+
+.mint-row { margin-top: 0.9rem; }
+
+.ct-formgrid { display: grid; grid-template-columns: 1fr; gap: 0 1.2rem; }
+@media (min-width: 40em) { .ct-formgrid { grid-template-columns: 1fr 1fr; } }
+
+.ct-caption { color: var(--crest-text); font-weight: 600; font-size: 0.92rem; margin: 0.4rem 0 0.8rem; }
+
+/* ---------- §13 pending-member badges + per-member claim links ------------ */
+
+.member-card { position: relative; }
+
+.pm-badge {
+  position: absolute;
+  top: -0.65rem;
+  right: 0.55rem;
+  z-index: 2;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.pm-badge svg { width: 1rem; height: 1rem; }
+
+.pm-pill {
+  padding: 0.08rem 0.5rem;
+  border-radius: 0.35rem;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--card);
+  white-space: nowrap;
+}
+
+.pm-linktile { grid-column: 1 / -1; min-width: 0; }
+
+.pm-linkcard {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--bg);
+  padding: 0.65rem 0.7rem;
+  margin-top: 0.1rem;
+}
+
+.pm-linkcap {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--crest-text);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.pm-linkcard .invite-link { font-size: 0.72rem; padding: 0.45rem 0.55rem; }
+.pm-linkcard .invite-actions { margin-top: 0.45rem; }
+.pm-linkhint { margin: 0.5rem 0 0; color: var(--muted); font-size: 0.72rem; }
+
+.pm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.7rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.6rem;
+  background: var(--nav-hover-bg);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.pm-chip svg { width: 1rem; height: 1rem; flex: none; }
+
+.pm-claimrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.pm-claimrow .hint { margin: 0; }
+
+/* The cake moves to the TOP-LEFT (§13.1: the pending clock owns top-right). */
+.cake-badge {
+  position: absolute;
+  top: -0.55rem;
+  left: -0.35rem;
+  right: auto;
+  font-size: 1.3rem;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+  z-index: 1;
 }

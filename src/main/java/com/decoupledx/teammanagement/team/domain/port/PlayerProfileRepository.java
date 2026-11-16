@@ -16,7 +16,18 @@ public interface PlayerProfileRepository {
 
     PlayerProfileDataValue findByAccount(UUID accountId);
 
-    PlayerProfileDataValue findByClaimToken(String claimToken);
+    PlayerProfileDataValue findByClaimTokenHash(String claimTokenHash);
+
+    /**
+     * Atomically consumes the claim token (single-use guard): clears the
+     * hash when THIS call wins the race; false means the token was already
+     * consumed (or gone) — the caller surfaces the honest 409.
+     */
+    boolean consumeClaimToken(UUID profileId, String tokenHash);
+
+    /** Hard-deletes an unclaimed profile (owner decision: removing a pending
+     *  member kills the row and with it the invitation). */
+    void deleteById(UUID profileId);
 
     /** Batch lookup for assembling member views (no per-member queries). */
     List<PlayerProfileDataValue> findAllByIds(Collection<UUID> profileIds);

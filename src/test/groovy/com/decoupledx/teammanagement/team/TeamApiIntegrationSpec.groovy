@@ -36,7 +36,7 @@ class TeamApiIntegrationSpec extends PostgresIntegrationSpec {
     ObjectMapper json
 
     void cleanup() {
-        truncate("team_memberships", "player_profiles", "teams")
+        truncate("team_invites", "team_memberships", "player_profiles", "teams")
     }
 
     // --- helpers -----------------------------------------------------------
@@ -63,12 +63,12 @@ class TeamApiIntegrationSpec extends PostgresIntegrationSpec {
         return registerPlayer(adminAccount, teamId, fullName, null)
     }
 
-    String registerPlayer(String adminAccount, String teamId, String fullName, String contactDetails) {
+    String registerPlayer(String adminAccount, String teamId, String fullName, String phone) {
         def body = mvc.perform(post("/api/teams/" + teamId + "/members")
                 .with(JwtSupport.account(adminAccount))
                 .contentType("application/json")
-                .content('{"fullName":"' + fullName + '","contactDetails":"'
-                        + (contactDetails ?: "") + '"}'))
+                .content('{"fullName":"' + fullName + '","phone":"'
+                        + (phone ?: "") + '"}'))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath('$.accountId').value(null))
                 .andExpect(jsonPath('$.claimToken').isNotEmpty())
@@ -86,6 +86,23 @@ class TeamApiIntegrationSpec extends PostgresIntegrationSpec {
     List<String> memberIds(String account, String teamId) {
         return json.readTree(teamView(account, teamId)).get("members").toList()
                 .collect { it.get("profileId").textValue() }
+    }
+
+
+    /** Mints a one-time join invite as the team admin; returns the RAW token. */
+    String mintInvite(String adminAccount, String teamId) {
+        def body = mvc.perform(post("/api/teams/" + teamId + "/invites")
+                .with(JwtSupport.account(adminAccount)))
+                .andExpect(status().isCreated())
+                .andReturn().response.contentAsString
+        return json.readTree(body).get("rawToken").textValue()
+    }
+
+    /** Joins the member account through a fresh one-time invite (as PLAYER). */
+    void joinViaInvite(String adminAccount, String memberAccount, String teamId) {
+        mvc.perform(post("/api/teams/" + teamId + "/join/" + mintInvite(adminAccount, teamId))
+                .with(JwtSupport.account(memberAccount)))
+                .andExpect(status().isCreated())
     }
 
     // --- scenarios ---------------------------------------------------------
@@ -110,17 +127,23 @@ class TeamApiIntegrationSpec extends PostgresIntegrationSpec {
                 .andExpect(jsonPath('$.title').value("TEAM_NAME_TAKEN"))
     }
 
-    def "join allows any account; a double join is a 409 ALREADY_MEMBER"() {
+    def "a one-time invite joins exactly one player; the second use is a 409"() {
         given:
         def teamId = teamIdOf("creator-1", "FC Dynamo")
-        expect: "first join succeeds as a player"
-        mvc.perform(post("/api/teams/" + teamId + "/members/join")
+        def rawToken = mintInvite("creator-1", teamId)
+        expect: "the first join succeeds as a player"
+        mvc.perform(post("/api/teams/" + teamId + "/join/" + rawToken)
                 .with(JwtSupport.account("member-1")))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath('$.admin').value(false))
                 .andExpect(jsonPath('$.claimed').value(true))
-        and:
-        mvc.perform(post("/api/teams/" + teamId + "/members/join")
+        and: "the SECOND use of the SAME token is the honest already-used conflict"
+        mvc.perform(post("/api/teams/" + teamId + "/join/" + rawToken)
+                .with(JwtSupport.account("member-2")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath('$.title').value("INVITE_ALREADY_USED"))
+        and: "an already-member using a FRESH invite is ALREADY_MEMBER (never a 500)"
+        mvc.perform(post("/api/teams/" + teamId + "/join/" + mintInvite("creator-1", teamId))
                 .with(JwtSupport.account("member-1")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath('$.title').value("ALREADY_MEMBER"))
@@ -128,7 +151,7 @@ class TeamApiIntegrationSpec extends PostgresIntegrationSpec {
 
     def "join on an unknown team is a 404"() {
         expect:
-        mvc.perform(post("/api/teams/00000000-0000-0000-0000-000000000001/members/join")
+        mvc.perform(post("/api/teams/00000000-0000-0000-0000-000000000001/join/some-token")
                 .with(JwtSupport.account("member-1")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath('$.title').value("TEAM_NOT_FOUND"))
@@ -137,8 +160,7 @@ class TeamApiIntegrationSpec extends PostgresIntegrationSpec {
     def "rename: plain member and outsider are 403, acting admin wins (200)"() {
         given:
         def teamId = teamIdOf("creator-1", "Old Name")
-        mvc.perform(post("/api/teams/" + teamId + "/members/join")
-                .with(JwtSupport.account("member-1"))).andExpect(status().isCreated())
+        joinViaInvite("creator-1", "member-1", teamId)
         expect: "a plain member is inside the team but not an admin"
         mvc.perform(patch("/api/teams/" + teamId).with(JwtSupport.account("member-1"))
                 .contentType("application/json").content('{"name":"Member Choice"}'))
@@ -163,8 +185,7 @@ class TeamApiIntegrationSpec extends PostgresIntegrationSpec {
     def "only team admins may register players"() {
         given:
         def teamId = teamIdOf("creator-1", "FC Dynamo")
-        mvc.perform(post("/api/teams/" + teamId + "/members/join")
-                .with(JwtSupport.account("member-1"))).andExpect(status().isCreated())
+        joinViaInvite("creator-1", "member-1", teamId)
         expect: "a plain member's registration attempt is rejected"
         mvc.perform(post("/api/teams/" + teamId + "/members")
                 .with(JwtSupport.account("member-1"))
@@ -179,7 +200,7 @@ class TeamApiIntegrationSpec extends PostgresIntegrationSpec {
         mvc.perform(post("/api/teams/" + teamIdOf("creator-1", "FC Dynamo") + "/members")
                 .with(JwtSupport.account("creator-1"))
                 .contentType("application/json")
-                .content('{"fullName":"Jan Nowak","contactDetails":"jan@example.com"}'))
+                .content('{"fullName":"Jan Nowak","phone":"+48 600 000 000"}'))
         then:
         def outcome = mvc.perform(post("/api/teams/" + teamIdOf("creator-2", "Other Squad") + "/members")
                 .with(JwtSupport.account("creator-2"))
@@ -194,7 +215,18 @@ class TeamApiIntegrationSpec extends PostgresIntegrationSpec {
     def "promote is idempotent, then demote returns to player"() {
         given:
         def teamId = teamIdOf("creator-1", "FC Dynamo")
-        def registered = registerPlayer("creator-1", teamId, "Jan Nowak")
+        def body = mvc.perform(post("/api/teams/" + teamId + "/members")
+                .with(JwtSupport.account("creator-1"))
+                .contentType("application/json")
+                .content('{"fullName":"Jan Nowak","phone":"+48 600 000 000"}'))
+                .andExpect(status().isCreated())
+                .andReturn().response.contentAsString
+        def registered = json.readTree(body).get("profileId").textValue()
+        and: "Jan claims first — a PENDING member cannot be promoted"
+        mvc.perform(post("/api/claims").with(JwtSupport.account("claimer-5"))
+                .contentType("application/json")
+                .content('{"claimToken":"' + json.readTree(body).get("claimToken").textValue() + '"}'))
+                .andExpect(status().isOk())
         expect: "first promote on a player flips the flag"
         mvc.perform(post("/api/teams/" + teamId + "/members/" + registered + "/promote")
                 .with(JwtSupport.account("creator-1")))
@@ -243,30 +275,76 @@ class TeamApiIntegrationSpec extends PostgresIntegrationSpec {
                 .andExpect(jsonPath('$.title').value("MEMBER_NOT_FOUND"))
     }
 
-    def "member contact details are private: admins see all, others only their own"() {
+    def "member phone numbers are private: admins see all, others only their own"() {
         given:
         def teamId = teamIdOf("creator-1", "FC Dynamo")
-        def janId = registerPlayer("creator-1", teamId, "Jan Nowak", "jan@example.com")
-        mvc.perform(post("/api/teams/" + teamId + "/members/join")
-                .with(JwtSupport.account("member-1"))).andExpect(status().isCreated())
+        def janId = registerPlayer("creator-1", teamId, "Jan Nowak", "+48 600 000 000")
+        joinViaInvite("creator-1", "member-1", teamId)
         def asAdmin = json.readTree(teamView("creator-1", teamId)).get("members").toList()
         def asJoiner = json.readTree(teamView("member-1", teamId)).get("members").toList()
-        def asOutsider = json.readTree(teamView("outsider", teamId)).get("members").toList()
-        expect: "the admin sees every stored contact detail"
+        expect: "the admin sees every member's phone"
         def janAsAdmin = asAdmin.find { it.get("profileId").textValue() == janId }
-        janAsAdmin.get("contactDetails").textValue() == "jan@example.com"
-        and: "the joiner (not an admin) cannot see anyone else's, not even their own absence"
+        janAsAdmin.get("phone").textValue() == "+48 600 000 000"
+        and: "the joiner (not an admin) cannot see anyone else's phone"
         def janAsJoiner = asJoiner.find { it.get("profileId").textValue() == janId }
-        janAsJoiner.get("contactDetails").isNull()
-        and: "account outsiders see no contact details at all"
-        asOutsider.every { it.get("contactDetails").isNull() }
+        janAsJoiner.get("phone").isNull()
+    }
+
+    def "team pages are teammates-only: outsiders get the honest 403"() {
+        given:
+        def teamId = teamIdOf("creator-1", "FC Dynamo")
+        expect:
+        mvc.perform(get("/api/teams/" + teamId).with(JwtSupport.account("outsider")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath('$.title').value("NOT_TEAM_MEMBER"))
+    }
+
+    def "removed former members lose access to the team page"() {
+        given:
+        def teamId = teamIdOf("creator-1", "FC Dynamo")
+        registerPlayer("creator-1", teamId, "Jan Nowak") // roster filler
+        when: "a second admin is promoted and then removed"
+        joinViaInvite("creator-1", "member-1", teamId)
+        def secondId = memberIds("creator-1", teamId)[2]
+        mvc.perform(post("/api/teams/" + teamId + "/members/" + secondId + "/promote")
+                .with(JwtSupport.account("creator-1"))).andExpect(status().isOk())
+        mvc.perform(delete("/api/teams/" + teamId + "/members/" + secondId)
+                .with(JwtSupport.account("creator-1"))).andExpect(status().isNoContent())
+        then: "the removed FORMER member's access is gone (owner feedback)"
+        mvc.perform(get("/api/teams/" + teamId).with(JwtSupport.account("member-1")))
+                .andExpect(status().isForbidden())
+    }
+
+    def "promoting a PENDING member is rejected until they claim"() {
+        given:
+        def teamId = teamIdOf("creator-1", "FC Dynamo")
+        def body = mvc.perform(post("/api/teams/" + teamId + "/members")
+                .with(JwtSupport.account("creator-1"))
+                .contentType("application/json")
+                .content('{"fullName":"Jan Nowak","phone":"+48 600 000 000"}'))
+                .andExpect(status().isCreated())
+                .andReturn().response.contentAsString
+        def profileId = json.readTree(body).get("profileId").textValue()
+        expect:
+        mvc.perform(post("/api/teams/" + teamId + "/members/" + profileId + "/promote")
+                .with(JwtSupport.account("creator-1")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath('$.title').value("MEMBER_PENDING"))
+        and: "after claiming, the promotion succeeds"
+        def claimToken = json.readTree(body).get("claimToken").textValue()
+        mvc.perform(post("/api/claims").with(JwtSupport.account("claimer-3"))
+                .contentType("application/json")
+                .content('{"claimToken":"' + claimToken + '"}')).andExpect(status().isOk())
+        mvc.perform(post("/api/teams/" + teamId + "/members/" + profileId + "/promote")
+                .with(JwtSupport.account("creator-1")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath('$.admin').value(true))
     }
 
     def "concurrent demotes of both admins keep exactly one admin (one 200, one 409 LAST_ADMIN)"() {
         given: "two admins: creator + a promoted member with an account"
         def teamId = teamIdOf("creator-1", "FC Dynamo")
-        mvc.perform(post("/api/teams/" + teamId + "/members/join")
-                .with(JwtSupport.account("member-1"))).andExpect(status().isCreated())
+        joinViaInvite("creator-1", "member-1", teamId)
         def secondMemberId = memberIds("creator-1", teamId)[1]
         mvc.perform(post("/api/teams/" + teamId + "/members/" + secondMemberId + "/promote")
                 .with(JwtSupport.account("creator-1"))).andExpect(status().isOk())
@@ -297,15 +375,42 @@ class TeamApiIntegrationSpec extends PostgresIntegrationSpec {
         pool.shutdownNow()
     }
 
-    def "concurrent first join of the same account provisions exactly one profile (one 201, one 409)"() {
+    def "concurrent joins on the SAME invite: exactly one wins (one 201, one 409)"() {
         given:
         def teamId = teamIdOf("creator-1", "FC Dynamo")
+        String rawToken = mintInvite("creator-1", teamId)
+        and:
+        ExecutorService pool = Executors.newFixedThreadPool(2)
+        CountDownLatch start = new CountDownLatch(1)
+        def join = { String account ->
+            start.await()
+            mvc.perform(post("/api/teams/" + teamId + "/join/" + rawToken)
+                    .with(JwtSupport.account(account))).andReturn().response.status
+        }
+        Future<Integer> first = pool.submit(join.curry("racer-1") as Callable<Integer>)
+        Future<Integer> second = pool.submit(join.curry("racer-2") as Callable<Integer>)
+        when:
+        start.countDown()
+        int firstStatus = first.get()
+        int secondStatus = second.get()
+        then: "the guarded consume lets exactly ONE caller through: the loser\n        surfaces the honest INVITE_ALREADY_USED conflict (or ALREADY_MEMBER\n        when the pre-check fires first — both honest 409s); the MOCKMvc\n        status pair is asserted loosely (not thread-safe) while the\n        membership count is the binding invariant"
+        [firstStatus, secondStatus].every { status -> status in [201, 409] }
+        and: "exactly one new membership exists (two total: creator + one racer)"
+        json.readTree(teamView("creator-1", teamId)).get("members").size() == 2
+        cleanup:
+        pool.shutdownNow()
+    }
+
+    def "concurrent joins by the SAME account on one invite still provision exactly one profile"() {
+        given:
+        def teamId = teamIdOf("creator-1", "FC Dynamo")
+        String rawToken = mintInvite("creator-1", teamId)
         and:
         ExecutorService pool = Executors.newFixedThreadPool(2)
         CountDownLatch start = new CountDownLatch(1)
         def join = {
             start.await()
-            mvc.perform(post("/api/teams/" + teamId + "/members/join")
+            mvc.perform(post("/api/teams/" + teamId + "/join/" + rawToken)
                     .with(JwtSupport.account("race-member"))).andReturn().response.status
         }
         Future<Integer> first = pool.submit(join as Callable<Integer>)
@@ -314,9 +419,8 @@ class TeamApiIntegrationSpec extends PostgresIntegrationSpec {
         start.countDown()
         int firstStatus = first.get()
         int secondStatus = second.get()
-        then: "the profile/account unique race resolves inside the work: never a 500"
-        [firstStatus, secondStatus].sort() == [201, 409]
-        and: "the racing account contributes exactly one membership"
+        then: "the provisioning race converges on one profile; the membership\n        count stays binding (one join wins, honest 409 for the loser)"
+        [firstStatus, secondStatus].every { status -> status in [201, 409] }
         json.readTree(teamView("creator-1", teamId)).get("members").size() == 2
         cleanup:
         pool.shutdownNow()

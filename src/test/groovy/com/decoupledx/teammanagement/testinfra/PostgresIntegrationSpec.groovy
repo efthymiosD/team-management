@@ -1,5 +1,7 @@
 package com.decoupledx.teammanagement.testinfra
 
+import java.nio.file.Files
+import java.nio.file.Path
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.jdbc.core.JdbcTemplate
@@ -25,6 +27,14 @@ abstract class PostgresIntegrationSpec extends Specification {
 
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine")
 
+    /**
+     * Per-JVM temp upload dir: integration tests must NEVER write into the
+     * developer's real `uploads/` directory (they upload 1–2-byte fixture
+     * "images" that would sit next to real uploads and render as broken
+     * images in the running dev app).
+     */
+    static final Path TEST_UPLOADS_DIR = Files.createTempDirectory("tm-test-uploads")
+
     static {
         POSTGRES.start()
     }
@@ -37,6 +47,7 @@ abstract class PostgresIntegrationSpec extends Specification {
         registry.add("spring.datasource.url", POSTGRES.&getJdbcUrl)
         registry.add("spring.datasource.username", POSTGRES.&getUsername)
         registry.add("spring.datasource.password", POSTGRES.&getPassword)
+        registry.add("app.uploads.dir", TEST_UPLOADS_DIR.&toString)
     }
 
     /** Truncates the given tables so specs stay order-independent. */

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${locale}">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${locale}" th:data-theme="${theme}">
 <head th:fragment="head(title)">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -24,6 +24,8 @@
            th:text="#{nav.home}">Home</a>
         <a class="nav-link" th:if="${currentUser.authenticated}" th:href="@{/}"
            th:attr="aria-current='page'" th:text="#{nav.myTeams}">My teams</a>
+        <a class="nav-link" th:if="${currentUser.authenticated}" th:href="@{/players/me}"
+           th:text="#{nav.myProfile}">My profile</a>
         <span class="nav-user" th:if="${currentUser.authenticated}">
           <span class="visually-hidden" th:text="#{nav.signedInAs} + ': '">Signed in as: </span><span
             class="nav-user-name" th:text="${currentUser.displayName}">player</span>
@@ -40,6 +42,23 @@
              th:classappend="${locale == 'el'} ? 'active'"
              th:attr="aria-current=${locale == 'el'} ? 'true' : null">EL</a>
         </div>
+        <!-- Manual theme switch (approved mockup §11): Auto = no data-theme
+             attribute (prefers-color-scheme decides); Light/Dark force the
+             scheme via the server-read cookie. Works without JS (form POST
+             per segment); app.js enhances in place with no reload. -->
+        <form th:action="@{/theme}" method="post" class="inline-form">
+          <div class="ts-theme" role="radiogroup" th:attr="aria-label=#{nav.theme}">
+            <button type="submit" class="ts-opt" role="radio" name="style" value="auto"
+                    th:attr="aria-checked=${theme == null} ? 'true' : 'false'"
+                    th:text="#{theme.auto}">Auto</button>
+            <button type="submit" class="ts-opt" role="radio" name="style" value="light"
+                    th:attr="aria-checked=${theme == 'light'} ? 'true' : 'false'"
+                    th:text="#{theme.light}">Light</button>
+            <button type="submit" class="ts-opt" role="radio" name="style" value="dark"
+                    th:attr="aria-checked=${theme == 'dark'} ? 'true' : 'false'"
+                    th:text="#{theme.dark}">Dark</button>
+          </div>
+        </form>
         <form th:if="${currentUser.authenticated}" th:action="@{/logout}" method="post" class="inline-form">
           <button type="submit" class="btn btn-ghost" th:text="#{nav.logout}">Log out</button>
         </form>

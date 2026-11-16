@@ -1,5 +1,6 @@
 package com.decoupledx.teammanagement.team.adapter.web;
 
+import com.decoupledx.common.web.Uploads;
 import com.decoupledx.teammanagement.team.adapter.api.PlayerProfileInfo;
 import com.decoupledx.teammanagement.team.domain.port.PlayerProfilePhotoService;
 import com.decoupledx.teammanagement.team.domain.port.ProfileClaimService;

@@ -1,6 +1,8 @@
 package com.decoupledx.teammanagement.team.adapter.web;
 
+import com.decoupledx.teammanagement.team.adapter.api.PlayerProfileInfo;
 import com.decoupledx.teammanagement.team.adapter.api.TeamMemberInfo;
+import com.decoupledx.teammanagement.team.domain.port.ProfileClaimService;
 import com.decoupledx.teammanagement.team.domain.port.TeamAdministrationService;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 class TeamMemberAdminController {
 
     private final TeamAdministrationService administrations;
+    private final ProfileClaimService claims;
 
     @PostMapping("/api/teams/{teamId}/members/{profileId}/promote")
     TeamMemberInfo promote(@PathVariable UUID teamId, @PathVariable UUID profileId) {
@@ -32,5 +35,11 @@ class TeamMemberAdminController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void remove(@PathVariable UUID teamId, @PathVariable UUID profileId) {
         administrations.removeMember(teamId, profileId);
+    }
+
+    @PostMapping("/api/teams/{teamId}/members/{profileId}/claim-link")
+    PlayerProfileInfo regenerateClaimLink(@PathVariable UUID teamId,
+            @PathVariable UUID profileId) {
+        return claims.regenerateClaimLink(teamId, profileId);
     }
 }

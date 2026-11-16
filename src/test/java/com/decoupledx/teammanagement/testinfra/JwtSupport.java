@@ -11,12 +11,12 @@ public final class JwtSupport {
 
     public static RequestPostProcessor account(String subject) {
         return SecurityMockMvcRequestPostProcessors.jwt()
-                .jwt(jwt -> jwt.subject(subject));
+                .jwt(jwt -> jwt.subject(subject).claim("email", subject + "@example.com"));
     }
 
     public static RequestPostProcessor admin(String subject) {
         return SecurityMockMvcRequestPostProcessors.jwt()
-                .jwt(jwt -> jwt.subject(subject))
+                .jwt(jwt -> jwt.subject(subject).claim("email", subject + "@example.com"))
                 .authorities(new SimpleGrantedAuthority("ROLE_ADMIN"));
     }
 }

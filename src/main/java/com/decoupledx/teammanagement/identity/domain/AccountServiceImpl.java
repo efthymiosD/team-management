@@ -18,24 +18,39 @@ class AccountServiceImpl implements AccountService {
 
     @Override
     public AccountId resolveOrProvision(String idpSubject) {
-        return resolveOrProvision(idpSubject, null);
+        return resolveOrProvision(idpSubject, null, null);
     }
 
     @Override
     public AccountId resolveOrProvision(String idpSubject, String displayName) {
-        // Deliberately NO transaction wrapper: on a parallel first-request
+        return resolveOrProvision(idpSubject, displayName, null);
+    }
+
+    @Override
+    public AccountId resolveOrProvision(String idpSubject, String displayName, String email) {
         // race the loser's INSERT fails and aborts a wrapped transaction
         // ("current transaction is aborted"), so no further statements could
-        // run. Each repository call is its own unit; the profile/account
-        // unique index is the truth and the adapter recovers the winner's
         // row on the race.
         AccountId account = accounts.findBySubject(idpSubject)
-                .orElseGet(() -> accounts.create(idpSubject, displayName));
+                .orElseGet(() -> accounts.create(idpSubject, displayName, email));
         if (displayName != null
                 && !accounts.displayNames(List.of(account)).containsKey(account)) {
             accounts.updateDisplayName(account, displayName);
         }
+        if (email != null && !email.isBlank()
+                && !email.equals(accounts.emails(List.of(account)).get(account))) {
+            accounts.updateEmail(account, email.strip());
+        }
         return account;
+    }
+
+    @Override
+    public Map<UUID, String> emails(Collection<AccountId> accountIds) {
+        return accounts.emails(accountIds).entrySet().stream()
+                .filter(entry -> isUuid(entry.getKey().value()))
+                .collect(Collectors.toMap(
+                        entry -> UUID.fromString(entry.getKey().value()),
+                        Map.Entry::getValue));
     }
 
     @Override

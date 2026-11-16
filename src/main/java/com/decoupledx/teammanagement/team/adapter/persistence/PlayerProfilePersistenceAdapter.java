@@ -1,4 +1,5 @@
 package com.decoupledx.teammanagement.team.adapter.persistence;
+import com.decoupledx.common.transaction.TransactionRunner;
 import com.decoupledx.teammanagement.team.domain.port.PlayerProfileDataValue;
 
 import com.decoupledx.teammanagement.team.domain.port.PlayerProfileRepository;
@@ -15,15 +16,16 @@ import org.springframework.stereotype.Component;
 class PlayerProfilePersistenceAdapter implements PlayerProfileRepository {
 
     private final PlayerProfileJpaRepository profiles;
+    private final TransactionRunner tx;
 
     @Override
     public PlayerProfileDataValue save(PlayerProfileDataValue profile) {
         if (profile.id() != null) {
             // UPDATE branch (row expected): constraint races at flush time
-            // surface honestly to the caller (e.g. the claim flow translates
-            // them per loss mode in ProfileClaimServiceImpl). On a miss the
-            // fall-through INSERT below handles the assigned-id provisioning
-            // flow, with its own insert-race recovery.
+            // surface honestly to the caller (the claim flow translates them
+            // per loss mode in ProfileClaimServiceImpl). On a miss the
+            // fall-through INSERT handles the assigned-id provisioning flow,
+            // with its own insert-race recovery.
             PlayerProfileEntity existing = profiles.findById(profile.id()).orElse(null);
             if (existing != null) {
                 existing.syncFrom(profile);
@@ -38,7 +40,6 @@ class PlayerProfilePersistenceAdapter implements PlayerProfileRepository {
             // Claim-token races surface on the UPDATE branch — never here.
             return recoverExistingOrRethrow(profile, conflict);
         } catch (ConcurrencyFailureException deadlock) {
-            // 40P01 on the insert path — same in-work recovery.
             return recoverExistingOrRethrow(profile, deadlock);
         }
     }
@@ -66,9 +67,27 @@ class PlayerProfilePersistenceAdapter implements PlayerProfileRepository {
     }
 
     @Override
-    public PlayerProfileDataValue findByClaimToken(String claimToken) {
-        PlayerProfileEntity entity = profiles.findByClaimToken(claimToken);
+    public PlayerProfileDataValue findByClaimTokenHash(String claimTokenHash) {
+        PlayerProfileEntity entity = profiles.findByClaimTokenHash(claimTokenHash);
         return entity != null ? entity.toData() : null;
+    }
+
+    @Override
+    public boolean consumeClaimToken(UUID profileId, String tokenHash) {
+        return tx.run(() -> {
+            try {
+                return profiles.consumeClaimToken(profileId, tokenHash) == 1;
+            } catch (ConcurrencyFailureException lostUpdateRace) {
+                // 40P01-class race on the guarded UPDATE: the honest
+                // already-claimed translation, resolved INSIDE the work.
+                return false;
+            }
+        });
+    }
+
+    @Override
+    public void deleteById(UUID profileId) {
+        profiles.deleteById(profileId);
     }
 
     @Override

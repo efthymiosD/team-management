@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${locale}" th:data-theme="${theme}">
+<head th:replace="~{fragments/navigation :: head(#{team.join.heading})}"></head>
+<body>
+<div th:replace="~{fragments/navigation :: navigation}"></div>
+<main class="container" id="main">
+  <div class="flash" th:if="${message != null}" role="status" th:text="${message}"></div>
+  <div class="flash flash-error" th:if="${error != null}" role="alert" th:text="${error}"></div>
+
+  <!-- Approved mockup §5/§12: identity hero — logo + team name + join CTA.
+       The token is consumed atomically on POST; a link works exactly once. -->
+  <section class="card card-narrow join-hero">
+    <img class="join-logo" th:if="${team.logoPath != null}" th:src="${team.logoPath}" alt="">
+    <span class="join-logo" th:if="${team.logoPath == null}" aria-hidden="true"
+          th:text="${#strings.toUpperCase(#strings.substring(team.name, 0, 1))}">A</span>
+    <h1 th:text="${team.name}">Team name</h1>
+    <p class="muted" th:text="#{team.join.note}">You are about to join this team as a player.</p>
+    <form th:action="@{/teams/{teamId}/join/{token}(teamId=${team.teamId}, token=${token})}" method="post">
+      <button type="submit" class="btn btn-primary btn-lg btn-block" th:text="#{team.join.button}">Join team</button>
+    </form>
+  </section>
+</main>
+</body>
+</html>

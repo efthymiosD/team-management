@@ -28,10 +28,12 @@ public class CurrentAccountResolver implements CurrentAccountApi {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication instanceof JwtAuthenticationToken jwt) {
             return resolve(jwt.getName(), jwt.getToken().getClaimAsString("preferred_username"),
+                    jwt.getToken().getClaimAsString("email"),
                     "JWT is missing the 'sub' claim required for account identity");
         }
         if (authentication != null && authentication.getPrincipal() instanceof OidcUser oidcUser) {
             return resolve(oidcUser.getName(), oidcUser.getPreferredUsername(),
+                    oidcUser.getEmail(),
                     "OIDC principal is missing the 'sub' claim required for account identity");
         }
         throw new IllegalStateException("No authenticated account principal present");
@@ -44,9 +46,10 @@ public class CurrentAccountResolver implements CurrentAccountApi {
                 .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
     }
 
-    private AccountId resolve(String subject, String displayName, String missingSubjectMessage) {
+    private AccountId resolve(String subject, String displayName, String email,
+            String missingSubjectMessage) {
         if (subject != null && !subject.isBlank()) {
-            return accounts.resolveOrProvision(subject, displayName);
+            return accounts.resolveOrProvision(subject, displayName, email);
         }
         throw new IllegalStateException(missingSubjectMessage);
     }

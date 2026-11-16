@@ -27,13 +27,19 @@ class AccountEntity {
     @Setter
     private String displayName;
 
+    @Column(nullable = true, unique = true)
+    @Setter
+    private String email;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    AccountEntity(UUID accountId, String idpSubject, String displayName, Instant createdAt) {
+    AccountEntity(UUID accountId, String idpSubject, String displayName, String email,
+            Instant createdAt) {
         this.accountId = accountId;
         this.idpSubject = idpSubject;
         this.displayName = displayName;
+        this.email = email;
         this.createdAt = createdAt;
     }
 }

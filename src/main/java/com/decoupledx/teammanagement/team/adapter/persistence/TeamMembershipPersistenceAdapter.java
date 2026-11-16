@@ -25,8 +25,8 @@ class TeamMembershipPersistenceAdapter implements TeamMembershipRepository {
             entity.syncFrom(membership);
             return memberships.saveAndFlush(entity).toData();
         } catch (DataIntegrityViolationException conflict) {
-            // team_memberships unique (team_id, profile_id) — joining twice in
-            // parallel loses the race as ALREADY_MEMBER. (FK races cannot
+            // team_memberships unique (team_id, profile_id) — joining twice
+            // in parallel loses the race as ALREADY_MEMBER. (FK races cannot
             // occur: members and teams are never deleted.)
             throw new BusinessException(ErrorCode.ALREADY_MEMBER);
         } catch (ConcurrencyFailureException deadlock) {

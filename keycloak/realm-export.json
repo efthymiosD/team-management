@@ -8,7 +8,11 @@
   "sslRequired": "external",
   "internationalizationEnabled": true,
   "defaultLocale": "en",
-  "supportedLocales": ["en", "pl", "el"],
+  "supportedLocales": [
+    "en",
+    "pl",
+    "el"
+  ],
   "roles": {
     "realm": [
       {
@@ -198,5 +202,6 @@
         "MEMBER"
       ]
     }
-  ]
+  ],
+  "registrationEmailAsUsername": true
 }
