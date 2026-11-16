@@ -1,6 +1,7 @@
 package com.decoupledx.teammanagement.webui;
 
 import com.decoupledx.common.error.BusinessException;
+import com.decoupledx.common.i18n.WebMessages;
 import com.decoupledx.teammanagement.team.adapter.api.TeamApi;
 import com.decoupledx.teammanagement.team.adapter.api.TeamInfo;
 import java.util.List;
@@ -47,6 +48,7 @@ class HomeWebController {
             redirect.addFlashAttribute("message", messages.get("home.teamCreated"));
         } catch (BusinessException exception) {
             redirect.addFlashAttribute("error", messages.errorMessage(exception));
+            redirect.addFlashAttribute("teamNameDraft", name);
         }
         return "redirect:/";
     }

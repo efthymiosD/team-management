@@ -7,8 +7,11 @@ import com.decoupledx.teammanagement.team.domain.port.CreateTeamService;
 import com.decoupledx.teammanagement.team.domain.port.CurrentPlayerProfile;
 import com.decoupledx.teammanagement.team.domain.port.PlayerProfilePhotoService;
 import com.decoupledx.teammanagement.team.domain.port.PlayerProfileRepository;
+import com.decoupledx.teammanagement.team.domain.port.PlayerProfileService;
 import com.decoupledx.teammanagement.team.domain.port.ProfileClaimService;
 import com.decoupledx.teammanagement.team.domain.port.TeamAdministrationService;
+import com.decoupledx.teammanagement.team.domain.port.TeamInviteRepository;
+import com.decoupledx.teammanagement.team.domain.port.TeamInviteService;
 import com.decoupledx.teammanagement.team.domain.port.TeamLogoService;
 import com.decoupledx.teammanagement.team.domain.port.TeamMembershipRepository;
 import com.decoupledx.teammanagement.team.domain.port.TeamProfileManagementService;
@@ -35,49 +38,64 @@ class TeamDomainConfig {
     }
 
     @Bean
-    TeamQueryService teamQueryService(TeamPermissions permissions, TeamRepository teams,
-            TeamMembershipRepository memberships, PlayerProfileRepository profiles) {
-        return new TeamQueryServiceImpl(permissions, teams, memberships, profiles);
+    TeamQueryService teamQueryService(TeamPermissionsService permissions, TeamRepository teams,
+            TeamMembershipRepository memberships, PlayerProfileRepository profiles,
+            TeamViewsService views) {
+        return new TeamQueryServiceImpl(permissions, teams, memberships, profiles, views);
     }
 
     @Bean
-    TeamProfileManagementService teamProfileManagementService(TeamPermissions permissions,
+    TeamProfileManagementService teamProfileManagementService(TeamPermissionsService permissions,
             TeamRepository teams, TeamQueryService teamQuery, Clock clock, TransactionRunner tx) {
         return new TeamProfileManagementServiceImpl(permissions, teams, teamQuery, clock, tx);
     }
 
     @Bean
-    TeamRegistrationService teamRegistrationService(TeamPermissions permissions,
+    TeamRegistrationService teamRegistrationService(TeamPermissionsService permissions,
             CurrentPlayerProfile currentPlayerProfile, TeamRepository teams,
             TeamMembershipRepository memberships, PlayerProfileRepository profiles,
-            Clock clock, TransactionRunner tx) {
+            TeamViewsService views, Clock clock, TransactionRunner tx) {
         return new TeamRegistrationServiceImpl(permissions, currentPlayerProfile, teams,
-                memberships, profiles, clock, tx);
+                memberships, profiles, views, clock, tx);
     }
 
     @Bean
-    TeamAdministrationService teamAdministrationService(TeamPermissions permissions,
+    TeamAdministrationService teamAdministrationService(TeamPermissionsService permissions,
             PlayerProfileRepository profiles, TeamMembershipRepository memberships,
-            TransactionRunner tx) {
-        return new TeamAdministrationServiceImpl(permissions, profiles, memberships, tx);
+            TeamViewsService views, TransactionRunner tx) {
+        return new TeamAdministrationServiceImpl(permissions, profiles, memberships, views, tx);
     }
 
     @Bean
-    TeamLogoService teamLogoService(TeamPermissions permissions, TeamRepository teams,
+    TeamLogoService teamLogoService(TeamPermissionsService permissions, TeamRepository teams,
             TeamQueryService teamQuery, Clock clock, TransactionRunner tx) {
         return new TeamLogoServiceImpl(permissions, teams, teamQuery, clock, tx);
     }
 
     @Bean
     PlayerProfilePhotoService playerProfilePhotoService(CurrentPlayerProfile currentPlayerProfile,
-            PlayerProfileRepository profiles, Clock clock) {
-        return new PlayerProfilePhotoServiceImpl(currentPlayerProfile, profiles, clock);
+            PlayerProfileRepository profiles, TeamViewsService views, Clock clock) {
+        return new PlayerProfilePhotoServiceImpl(currentPlayerProfile, profiles, views, clock);
+    }
+
+    @Bean
+    PlayerProfileService playerProfileService(CurrentPlayerProfile currentPlayerProfile,
+            PlayerProfileRepository profiles, TeamViewsService views, Clock clock) {
+        return new PlayerProfileServiceImpl(currentPlayerProfile, profiles, views, clock);
     }
 
     @Bean
     ProfileClaimService profileClaimService(CurrentAccountApi accounts, PlayerProfileRepository profiles,
-            Clock clock, TransactionRunner tx) {
-        return new ProfileClaimServiceImpl(accounts, profiles, clock, tx);
+            TeamMembershipRepository memberships, TeamRepository teams,
+            TeamPermissionsService permissions, TeamViewsService views, Clock clock,
+            TransactionRunner tx) {
+        return new ProfileClaimServiceImpl(accounts, profiles, memberships, teams, permissions,
+                views, clock, tx);
+    }
+
+    @Bean
+    TeamViewsService teamViews(AccountDirectoryApi directory) {
+        return new TeamViewsService(directory);
     }
 
     @Bean
@@ -87,8 +105,17 @@ class TeamDomainConfig {
     }
 
     @Bean
-    TeamPermissions teamPermissions(CurrentAccountApi accounts, PlayerProfileRepository profiles,
+    TeamPermissionsService teamPermissions(CurrentAccountApi accounts, PlayerProfileRepository profiles,
             TeamMembershipRepository memberships) {
-        return new TeamPermissions(accounts, profiles, memberships);
+        return new TeamPermissionsService(accounts, profiles, memberships);
+    }
+
+    @Bean
+    TeamInviteService teamInviteService(TeamPermissionsService permissions,
+            CurrentPlayerProfile currentPlayerProfile, TeamRepository teams,
+            TeamMembershipRepository memberships, TeamInviteRepository invites,
+            TeamViewsService views, Clock clock, TransactionRunner tx) {
+        return new TeamInviteServiceImpl(permissions, currentPlayerProfile, teams, memberships,
+                invites, views, clock, tx);
     }
 }

@@ -25,7 +25,6 @@ class TeamPersistenceAdapter implements TeamRepository {
             entity.syncFrom(team);
             return teams.saveAndFlush(entity).toData();
         } catch (DataIntegrityViolationException conflict) {
-            // teams_name_unique — the only unique constraint on teams
             throw new BusinessException(ErrorCode.TEAM_NAME_TAKEN);
         } catch (ConcurrencyFailureException deadlock) {
             // 40P01: the parallel write wins; the caller gets the honest 409

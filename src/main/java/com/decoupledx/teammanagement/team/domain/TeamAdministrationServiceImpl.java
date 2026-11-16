@@ -3,6 +3,7 @@ import com.decoupledx.common.error.BusinessException;
 import com.decoupledx.common.transaction.TransactionRunner;
 import com.decoupledx.teammanagement.shared.ErrorCode;
 import com.decoupledx.teammanagement.team.adapter.api.TeamMemberInfo;
+import com.decoupledx.teammanagement.team.domain.port.PlayerProfileDataValue;
 import com.decoupledx.teammanagement.team.domain.port.PlayerProfileRepository;
 import com.decoupledx.teammanagement.team.domain.port.TeamAdministrationService;
 import com.decoupledx.teammanagement.team.domain.port.TeamMembershipDataValue;
@@ -13,9 +14,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 class TeamAdministrationServiceImpl implements TeamAdministrationService {
 
-    private final TeamPermissions permissions;
+    private final TeamPermissionsService permissions;
     private final PlayerProfileRepository profiles;
     private final TeamMembershipRepository memberships;
+    private final TeamViewsService views;
     private final TransactionRunner tx;
 
     @Override
@@ -23,16 +25,19 @@ class TeamAdministrationServiceImpl implements TeamAdministrationService {
         return tx.run(() -> {
             permissions.requireAdmin(teamId);
             TeamMembershipDataValue membership = membership(teamId, profileId);
-            // Idempotent: promoting a member who is already an admin is a
-            // no-op that returns the current state.
-            if ("PLAYER".equals(membership.role())) {
+            // Owner decision 2026-11-16: a PENDING member (no linked account)
+            // cannot be promoted — they claim first, then become eligible.
+            PlayerProfileDataValue candidate = profiles.find(profileId);
+            if (candidate != null && candidate.accountId() == null) {
+                throw new BusinessException(ErrorCode.MEMBER_PENDING);
+            }
+            if (TeamMembershipRole.PLAYER.name().equals(membership.role())) {
                 TeamMembership changed = TeamMembership.from(membership);
                 changed.promote();
                 membership = memberships.save(changed.toData());
             }
-            // The profile FK (team_memberships.profile_id → player_profiles)
-            // guarantees the row exists — no speculative 404 surface here.
-            return TeamRegistrationServiceImpl.memberInfo(membership, profiles.find(profileId));
+            return views.memberInfo(membership, profiles.find(profileId),
+                    permissions.viewerProfileIdOrNull(), true);
         });
     }
 
@@ -41,16 +46,15 @@ class TeamAdministrationServiceImpl implements TeamAdministrationService {
         return tx.run(() -> {
             permissions.requireAdmin(teamId);
             TeamMembershipDataValue membership = membership(teamId, profileId);
-            if ("ADMIN".equals(membership.role()) && memberships.lockAdmins(teamId).size() <= 1) {
-                // PESSIMISTIC_WRITE on the team's ADMIN rows serializes the
+            if (TeamMembershipRole.ADMIN.name().equals(membership.role()) && memberships.lockAdmins(teamId).size() <= 1) {
                 // concurrent last-admin race: the loser re-reads the shrunken
-                // count and rejects.
                 throw new BusinessException(ErrorCode.LAST_ADMIN);
             }
             TeamMembership changed = TeamMembership.from(membership);
             changed.demote();
             TeamMembershipDataValue saved = memberships.save(changed.toData());
-            return TeamRegistrationServiceImpl.memberInfo(saved, profiles.find(profileId));
+            return views.memberInfo(saved, profiles.find(profileId),
+                    permissions.viewerProfileIdOrNull(), true);
         });
     }
 
@@ -59,10 +63,17 @@ class TeamAdministrationServiceImpl implements TeamAdministrationService {
         tx.run(() -> {
             permissions.requireAdmin(teamId);
             TeamMembershipDataValue membership = membership(teamId, profileId);
-            if ("ADMIN".equals(membership.role()) && memberships.lockAdmins(teamId).size() <= 1) {
+            if (TeamMembershipRole.ADMIN.name().equals(membership.role()) && memberships.lockAdmins(teamId).size() <= 1) {
                 throw new BusinessException(ErrorCode.LAST_ADMIN);
             }
             memberships.delete(membership);
+            // Owner decision 2026-11-15: removing a PENDING member (unclaimed
+            if (memberships.findByProfile(profileId).isEmpty()) {
+                PlayerProfileDataValue profile = profiles.find(profileId);
+                if (profile != null && profile.accountId() == null) {
+                    profiles.deleteById(profileId);
+                }
+            }
             return null;
         });
     }

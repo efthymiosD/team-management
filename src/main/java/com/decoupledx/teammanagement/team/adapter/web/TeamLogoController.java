@@ -1,5 +1,6 @@
 package com.decoupledx.teammanagement.team.adapter.web;
 
+import com.decoupledx.common.web.Uploads;
 import com.decoupledx.teammanagement.team.adapter.api.TeamWithMembersInfo;
 import com.decoupledx.teammanagement.team.domain.port.TeamLogoService;
 import java.util.UUID;

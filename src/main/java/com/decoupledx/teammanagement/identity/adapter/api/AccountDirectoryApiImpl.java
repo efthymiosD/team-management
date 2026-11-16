@@ -22,6 +22,11 @@ class AccountDirectoryApiImpl implements AccountDirectoryApi {
     }
 
     @Override
+    public Map<UUID, String> emails(Collection<AccountId> accounts) {
+        return accountService.emails(accounts);
+    }
+
+    @Override
     public List<AccountEntry> findAll() {
         return accountService.findAll();
     }

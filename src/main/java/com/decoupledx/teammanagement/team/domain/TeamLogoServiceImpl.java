@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 class TeamLogoServiceImpl implements TeamLogoService {
 
-    private final TeamPermissions permissions;
+    private final TeamPermissionsService permissions;
     private final TeamRepository teams;
     private final TeamQueryService teamQuery;
     private final Clock clock;

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${locale}" th:data-theme="${theme}">
+<head th:replace="~{fragments/navigation :: head(#{profile.heading})}"></head>
+<body>
+<div th:replace="~{fragments/navigation :: navigation}"></div>
+<main class="container" id="main">
+  <div class="flash" th:if="${message != null}" role="status" th:text="${message}"></div>
+  <div class="flash flash-error" th:if="${error != null}" role="alert" th:text="${error}"></div>
+
+  <!-- Post-registration completeness callout: persistent while required info is missing. -->
+  <div class="flash flash-warn" th:if="${profile.phone == null}" role="alert"
+       th:text="#{profile.completeFirst}">Please complete your profile.</div>
+
+  <!-- ONE form for the whole page (owner feedback: a separate photo form
+       discarded pending detail edits): every submit persists the full visible
+       state — details + the OPTIONAL photo part. -->
+  <form th:action="@{/players/me/profile}" method="post" enctype="multipart/form-data">
+    <section class="card">
+      <div class="profile-head">
+        <!-- Approved mockup §6/§8: no letter-initial avatar; photo or person glyph. -->
+        <img class="profile-photo" th:if="${profile.photoPath != null}" th:src="${profile.photoPath}" alt="">
+        <span class="profile-photo profile-photo-ph" th:if="${profile.photoPath == null}" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8.2" r="4.2"/><path d="M12 13.6c-4.6 0-8 2.6-8 6v.9h16v-.9c0-3.4-3.4-6-8-6z"/></svg>
+        </span>
+        <div>
+          <h1 th:text="${profile.fullName}">Name</h1>
+          <p class="member-nat-lg" th:if="${profile.nationality != null}">
+            <span aria-hidden="true" th:text="${countries.flagOf(profile.nationality)}">🇬🇷</span>&nbsp;<span th:text="${nationalityName}">Greece</span>
+          </p>
+        </div>
+      </div>
+      <div class="upload-row">
+        <label for="photo" th:text="#{profile.photo}">Profile photo</label>
+        <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp">
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 th:text="#{profile.details.heading}">Details</h2>
+      <div class="field">
+        <label for="fullName" th:text="#{profile.name}">Player name</label>
+        <input class="input" type="text" id="fullName" name="fullName" maxlength="200" required
+               th:value="${profileForm?.fullName != null} ? ${profileForm.fullName} : ${profile.fullName}">
+      </div>
+
+      <div class="field">
+        <label for="email" th:text="#{profile.email}">E-mail</label>
+        <div class="lock-row">
+          <input class="input input-readonly" type="email" id="email" name="email" readonly
+                 th:value="${profile.email}" aria-describedby="emailHint">
+        </div>
+        <p class="hint" id="emailHint" th:text="#{profile.email.hint}">From your sign-in; not editable.</p>
+      </div>
+
+      <div class="field">
+        <label for="phone" th:text="#{profile.phone}">Phone</label>
+        <input class="input" type="tel" id="phone" name="phone" required
+               pattern="\+[0-9][0-9 -]{5,18}[0-9]"
+               th:value="${profileForm?.phone != null} ? ${profileForm.phone} : ${profile.phone}">
+        <p class="hint" th:text="#{profile.phone.hint}">International format, e.g. +30 694 000 0000.</p>
+      </div>
+
+      <div class="field">
+        <label for="birthDate" th:text="#{profile.birthday}">Birthday</label>
+        <input class="input" type="date" id="birthDate" name="birthDate"
+               min="1900-01-01" max="2100-01-01"
+               th:value="${profileForm?.birthDate != null} ? ${profileForm.birthDate} : ${profile.birthDate}">
+      </div>
+
+      <div class="field">
+        <label for="nationality" th:text="#{profile.nationality}">Nationality</label>
+        <div class="combo" data-country-combo>
+          <span class="combo-flag" data-country-flag th:if="${profile.nationality != null}"
+                th:text="${countries.flagOf(profile.nationality)}"></span>
+          <span class="combo-flag combo-flag-empty" data-country-flag th:if="${profile.nationality == null}"></span>
+          <input class="combo-input" type="text" id="nationality" name="nationality" list="countryList"
+                 autocomplete="off" maxlength="2"
+                 th:value="${profileForm?.nationality != null} ? ${profileForm.nationality} : ${profile.nationality}">
+        </div>
+        <datalist id="countryList">
+          <option th:each="country : ${countries.all()}" th:value="${country.code}"
+                  th:label="${country.flag} + ' ' + ${country.name}"></option>
+        </datalist>
+        <p class="hint" th:text="#{profile.nationalityHint}">Search by country name or ISO code (e.g. GR).</p>
+      </div>
+
+      <button type="submit" class="btn btn-primary" th:text="#{profile.save}">Save</button>
+    </section>
+  </form>
+</main>
+<script src="/js/app.js" defer></script>
+</body>
+</html>

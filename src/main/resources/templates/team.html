@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${locale}" th:data-theme="${theme}">
+<head th:replace="~{fragments/navigation :: head(${team.name})}"></head>
+<body>
+<div th:replace="~{fragments/navigation :: navigation}"></div>
+<main class="container" id="main">
+  <div class="flash" th:if="${message != null}" role="status" th:text="${message}"></div>
+  <div class="flash flash-error" th:if="${error != null}" role="alert" th:text="${error}"></div>
+
+  <section class="card">
+    <div class="team-head">
+      <img class="team-logo team-logo-lg" th:if="${team.logoPath != null}" th:src="${team.logoPath}" alt="">
+      <span class="team-logo team-logo-lg" th:if="${team.logoPath == null}" aria-hidden="true"
+            th:text="${#strings.toUpperCase(#strings.substring(team.name, 0, 1))}">A</span>
+      <div class="team-head-text">
+        <h1 th:text="${team.name}">Team name</h1>
+        <p class="team-meta">
+          <span th:text="${#lists.size(team.members)}"></span>&nbsp;<span th:text="#{team.membersCount}">members</span>
+          <span aria-hidden="true"> · </span>
+          <span th:text="#{team.createdAt}">Created</span>&nbsp;<span th:text="${createdAt}">Mar 14, 2026</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- ONE form for the header's staged changes (owner feedback: editing
+         the name AND picking a logo then saving one lost the other): every
+         submit persists the full visible state — rename + the OPTIONAL logo
+         part, validated all-or-nothing. -->
+    <form th:if="${team.viewerIsAdmin}" th:action="@{/teams/{teamId}/details(teamId=${team.teamId})}"
+          method="post" enctype="multipart/form-data" class="rename-form">
+      <label class="visually-hidden" for="teamName" th:text="#{team.name.label}">Team name</label>
+      <input class="input" type="text" id="teamName" name="name" maxlength="200" required
+             th:value="${teamRenameDraft != null} ? ${teamRenameDraft} : ${team.name}">
+      <label for="logo" th:text="#{team.logo}">Team logo</label>
+      <input type="file" id="logo" name="logo" accept="image/jpeg,image/png,image/webp">
+      <button type="submit" class="btn btn-small btn-primary" th:text="#{team.rename.save}">Save</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2 th:text="#{team.players}">Players</h2>
+      <span class="count-pill" th:text="${#lists.size(team.members)}">3</span>
+    </div>
+    <ul class="player-grid">
+      <li class="member-tile" th:each="member : ${team.members}"
+          th:classappend="${claimLinkFor == member.profileId.toString() and claimLinkSource == 'tile'} ? 'pm-linktile'">
+        <a class="member-card" th:href="@{/teams/{teamId}/members/{profileId}(teamId=${team.teamId}, profileId=${member.profileId})}">
+          <span class="pm-badge" th:if="${!member.claimed}" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+          </span>
+          <span class="cake-badge" th:if="${birthdayIds.contains(member.profileId.toString())}"
+                th:title="#{member.birthdayToday}" aria-hidden="true">🎂</span>
+          <img class="member-photo" th:if="${member.photoPath != null}" th:src="${member.photoPath}" alt="">
+          <span class="member-photo member-photo-ph" th:if="${member.photoPath == null}" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8.2" r="4.2"/><path d="M12 13.6c-4.6 0-8 2.6-8 6v.9h16v-.9c0-3.4-3.4-6-8-6z"/></svg>
+          </span>
+          <span class="member-name" th:text="${member.fullName}">Name</span>
+          <span class="member-nat" th:if="${member.nationality != null}">
+            <span aria-hidden="true" th:text="${countries.flagOf(member.nationality)}">🇬🇷</span>&nbsp;<span th:text="${member.nationality}">GR</span>
+          </span>
+          <span class="pill-row">
+            <span class="pm-pill" th:if="${!member.claimed}" th:text="#{member.pending}">Pending</span>
+            <span class="you-pill" th:if="${member.mine}" th:text="#{team.you}">You</span>
+            <span class="role-badge" th:if="${member.admin}" th:text="#{team.role.admin}">Admin</span>
+          </span>
+        </a>
+        <div class="tile-actions" data-testid="member-actions" th:if="${team.viewerIsAdmin}">
+          <form th:if="${!member.admin}" th:action="@{/teams/{teamId}/members/{profileId}/promote(teamId=${team.teamId}, profileId=${member.profileId})}"
+                method="post" class="inline-form">
+            <button type="submit" class="btn btn-small btn-primary"
+                    th:disabled="${!member.claimed}"
+                    th:title="${!member.claimed} ? #{error.member_pending} : null"
+                    th:text="#{team.promote}">Promote</button>
+          </form>
+          <form th:if="${member.admin && !member.mine}" th:action="@{/teams/{teamId}/members/{profileId}/demote(teamId=${team.teamId}, profileId=${member.profileId})}"
+                method="post" class="inline-form">
+            <button type="submit" class="btn btn-small"
+                    th:disabled="${adminCount == 1}"
+                    th:title="${adminCount == 1} ? #{team.lastAdminNote} : null"
+                    th:text="#{team.demote}">Demote</button>
+          </form>
+          <form th:action="@{/teams/{teamId}/members/{profileId}/remove(teamId=${team.teamId}, profileId=${member.profileId})}"
+                method="post" class="inline-form">
+            <!-- Eligible = colored; the last-admin edge case renders grayed AND
+                 disabled (not clickable) with the rule as the tooltip. -->
+            <button type="submit" class="btn btn-small btn-danger"
+                    th:disabled="${member.admin && adminCount == 1}"
+                    th:title="${member.admin && adminCount == 1} ? #{team.lastAdminNote} : null"
+                    th:text="#{team.remove}">Remove</button>
+          </form>
+          <form th:if="${!member.claimed}" th:action="@{/teams/{teamId}/members/{profileId}/claim-link(teamId=${team.teamId}, profileId=${member.profileId})}"
+                method="post" class="inline-form">
+            <input type="hidden" name="source" value="tile">
+            <button type="submit" class="btn btn-small btn-ghost" th:text="#{member.claimLink.generate}">New claim link</button>
+          </form>
+        </div>
+        <div class="pm-linkcard" th:if="${claimLinkFor == member.profileId.toString() and claimLinkSource == 'tile'}">
+          <p class="pm-linkcap"><span aria-hidden="true">🔗</span>
+            <span th:text="#{member.claimLink.caption(${member.fullName})}">Fresh claim link for Name</span>
+          </p>
+          <code class="invite-link tile-claim-link" th:text="${claimLink}">https://host/…/claim/{token}</code>
+          <div class="invite-actions">
+            <button type="button" class="btn btn-small btn-primary js-copy-link" data-copy-target="tile-claim-link"
+                    th:text="#{team.invite.copy}">Copy link</button>
+            <button type="button" class="btn btn-small btn-ghost js-share-link" data-share-url="${claimLink}"
+                    th:text="#{team.invite.share}">Share…</button>
+          </div>
+          <p class="pm-linkhint" th:text="#{member.claimLink.oneActive}">One active link — regenerating replaces it.</p>
+        </div>
+      </li>
+    </ul>
+    <p class="muted admin-note" th:if="${team.viewerIsAdmin}" th:text="#{team.lastAdminNote}">
+      The last administrator cannot be removed or demoted.
+    </p>
+  </section>
+
+  <!-- §12.1 (approved): ONE-TIME invite links — mint shows the fresh link
+       exactly once (flash); afterwards the card lists the ACTIVE invites
+       (hash-only storage: no raw link re-display) each with Revoke. -->
+  <section class="card" th:if="${team.viewerIsAdmin}">
+    <h2 th:text="#{team.invite.heading}">Invite a player</h2>
+    <p class="muted" th:text="#{team.invite.note}">Invite links are one-time — each link works for exactly one player.</p>
+
+    <div class="invite-row" th:if="${inviteLink != null}">
+      <code class="invite-link" th:text="${inviteLink}">https://host/teams/{id}/join/{token}</code>
+      <div class="invite-actions">
+        <button type="button" class="btn btn-primary js-copy-link" data-copy-target="invite-link"
+                th:text="#{team.invite.copy}">Copy link</button>
+        <button type="button" class="btn btn-ghost js-share-link" data-share-url="${inviteLink}"
+                th:text="#{team.invite.share}">Share…</button>
+      </div>
+    </div>
+    <p class="copy-note" role="status" th:if="${inviteLink != null}"
+       th:text="#{team.invite.copied}" hidden></p>
+
+    <div class="hint" th:if="${inviteLink == null and #lists.isEmpty(activeInvites)}"
+         th:text="#{team.invite.none}">No invite link is outstanding right now.</div>
+
+    <ul class="invite-list" th:if="${inviteLink == null and !#lists.isEmpty(activeInvites)}">
+      <li th:each="invite : ${activeInvites}">
+        <span class="muted"
+              th:text="#{team.invite.outstanding} + ' ' + ${invite.createdAt}">Outstanding · Nov 15, 2026</span>
+        <form th:action="@{/teams/{teamId}/invites/{inviteId}/revoke(teamId=${team.teamId}, inviteId=${invite.inviteId})}"
+              method="post" class="inline-form">
+          <button type="submit" class="btn btn-small btn-ghost"
+                  th:text="#{team.invite.revoke}">Revoke</button>
+        </form>
+      </li>
+    </ul>
+
+    <form th:action="@{/teams/{teamId}/invites(teamId=${team.teamId})}" method="post" class="mint-row">
+      <button type="submit" class="btn btn-primary" th:text="#{team.invite.generate}">Generate invite link</button>
+    </form>
+  </section>
+
+  <!-- §13.3 (approved): the FULL minted claim-link card after regenerating
+       from the member-profile view (tile minting renders the in-tile variant). -->
+  <section class="card" th:if="${claimLink != null and claimLinkSource == 'member'}">
+    <h2 th:text="#{member.added.heading}">Claim link ready</h2>
+    <p class="ct-caption" th:text="#{member.claimLink.caption(${claimLinkName})}">Fresh claim link — share it once.</p>
+    <div class="invite-row">
+      <code class="invite-link claim-link" th:text="${claimLink}">https://host/…/claim/{token}</code>
+      <div class="invite-actions">
+        <button type="button" class="btn btn-primary js-copy-link" data-copy-target="claim-link"
+                th:text="#{team.invite.copy}">Copy link</button>
+        <button type="button" class="btn btn-ghost js-share-link" data-share-url="${claimLink}"
+                th:text="#{team.invite.share}">Share…</button>
+      </div>
+    </div>
+    <p class="hint" th:text="#{member.claimLink.once}">Shown this once — the link is never displayed again after you leave this page.</p>
+  </section>
+
+  <!-- §12.1 (approved): ONE form for adding a pending member (no e-mail);
+       after a successful save the form is REPLACED by the claim-link card
+       (input-preservation rule — never two competing forms). -->
+  <section class="card" th:if="${team.viewerIsAdmin}">
+    <div th:if="${claimLink == null and claimLinkSource == null}">
+      <h2 th:text="#{member.add.heading}">Add a member directly</h2>
+      <p class="muted" th:text="#{member.add.note}">Create a pending profile for someone without an e-mail — then share their personal claim link.</p>
+      <form th:action="@{/teams/{teamId}/members(teamId=${team.teamId})}" method="post" class="ct-formgrid">
+        <div class="field">
+          <label for="memberName" th:text="#{member.add.name}">Player name *</label>
+          <input class="input" type="text" id="memberName" name="fullName" maxlength="200" required
+                 th:value="${memberDraft?.fullName}">
+        </div>
+        <div class="field">
+          <label for="memberPhone" th:text="#{member.add.phone}">Phone *</label>
+          <input class="input" type="tel" id="memberPhone" name="phone" required
+                 pattern="\+[0-9][0-9 -]{5,18}[0-9]" th:value="${memberDraft?.phone}">
+        </div>
+        <div class="field">
+          <label for="memberNationality" th:text="#{profile.nationality}">Nationality</label>
+          <div class="combo" data-country-combo>
+            <span class="combo-flag combo-flag-empty" data-country-flag></span>
+            <input class="combo-input" type="text" id="memberNationality" name="nationality"
+                   list="countryList" autocomplete="off" maxlength="2"
+                   th:value="${memberDraft?.nationality}">
+          </div>
+        </div>
+        <div class="field">
+          <label for="memberBirthDate" th:text="#{profile.birthday}">Birthday</label>
+          <input class="input" type="date" id="memberBirthDate" name="birthDate"
+                 min="1900-01-01" max="2100-01-01" th:value="${memberDraft?.birthDate}">
+        </div>
+        <div style="grid-column:1 / -1;">
+          <button type="submit" class="btn btn-primary" th:text="#{member.add.button}">Add member</button>
+        </div>
+      </form>
+      <datalist id="countryList">
+        <option th:each="country : ${countries.all()}" th:value="${country.code}"
+                th:label="${country.flag} + ' ' + ${country.name}"></option>
+      </datalist>
+    </div>
+
+    <div th:if="${claimLink != null and claimLinkSource == null}">
+      <h2 th:text="#{member.added.heading}">Claim link ready</h2>
+      <p class="ct-caption muted" th:text="#{member.added.caption}">Pending member added — share their claim link.</p>
+      <div class="invite-row">
+        <code class="invite-link member-claim-link" th:text="${claimLink}">https://host/…/claim/{token}</code>
+        <div class="invite-actions">
+          <button type="button" class="btn btn-primary js-copy-link" data-copy-target="member-claim-link"
+                  th:text="#{team.invite.copy}">Copy link</button>
+          <button type="button" class="btn btn-ghost js-share-link" data-share-url="${claimLink}"
+                  th:text="#{team.invite.share}">Share…</button>
+        </div>
+      </div>
+      <p class="hint" th:text="#{member.added.hint}">The player joins when they open this link and sign in. Deleting the pending member invalidates this link.</p>
+    </div>
+  </section>
+</main>
+<script src="/js/app.js" defer></script>
+</body>
+</html>

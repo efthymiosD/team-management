@@ -17,7 +17,16 @@ public interface AccountService {
 
     AccountId resolveOrProvision(String idpSubject, String displayName);
 
+    /**
+     * Resolution with the IdP-captured identity: display name and the
+     * (registration-required) e-mail address, mirrored onto the account.
+     */
+    AccountId resolveOrProvision(String idpSubject, String displayName, String email);
+
     Map<UUID, String> displayNames(Collection<AccountId> accountIds);
+
+    /** E-mail addresses keyed by internal account id (absent = not captured). */
+    Map<UUID, String> emails(Collection<AccountId> accountIds);
 
     List<AccountEntry> findAll();
 

@@ -1,8 +1,9 @@
 package com.decoupledx.teammanagement.team.domain
 
-import java.time.Instant
-import java.util.UUID
+import com.decoupledx.common.error.BusinessException
 import spock.lang.Specification
+
+import java.time.Instant
 
 /**
  * Domain invariants, no Spring and no database: name validation, claim
@@ -40,30 +41,89 @@ class TeamDomainSpec extends Specification {
         when:
         PlayerProfile.forAccount(UUID.randomUUID(), "", NOW)
         then:
-        thrown(IllegalArgumentException)
+        thrown(BusinessException)
     }
 
-    def "unclaimed profile normalizes blank optional fields"() {
+    def "unclaimed profile keeps optional fields empty"() {
         expect:
-        def profile = PlayerProfile.unclaimed("Jan Kowalski", "   ", "  ", "token-123", NOW)
-        profile.getContactDetails() == null
+        def profile = PlayerProfile.unclaimed("Jan Kowalski", null, null, null,
+                "token-123-hash", NOW)
+        profile.getPhone() == null
         profile.getNationality() == null
+    }
+
+    def "unclaimed profile validates an optional phone and normalizes nationality"() {
+        expect:
+        def profile = PlayerProfile.unclaimed("Jan Kowalski", "+48 600 000 000", null, "pl",
+                "token-123-hash", NOW)
+        profile.getPhone() == "+48 600 000 000"
+        profile.getNationality() == "PL"
+        when:
+        PlayerProfile.unclaimed("Jan Kowalski", "600-000-000", null, null,
+                "token-123-hash", NOW)
+        then:
+        thrown(BusinessException)
     }
 
     def "unclaimed profile nationality is bounded"() {
         when:
-        PlayerProfile.unclaimed("Jan Kowalski", null, "x" * 101, "token-123", NOW)
+        PlayerProfile.unclaimed("Jan Kowalski", null, null, "x" * 101,
+                "token-123-hash", NOW)
         then:
-        thrown(IllegalArgumentException)
+        thrown(BusinessException)
     }
 
-    def "unclaimed profile always carries a claim token and no account"() {
+    def "self-service profile edit: name editable, phone required, nationality is ISO"() {
+        given:
+        def profile = PlayerProfile.from(PlayerProfile.unclaimed("Jan Kowalski", null, null, null,
+                "token-123-hash", NOW).toData())
+        when: "the full self-service edit with the required phone"
+        profile.updateDetails("Jan Nowak", "+48 600 000 000",
+                java.time.LocalDate.parse("1995-03-14"), "pl", NOW)
+        then:
+        profile.getFullName() == "Jan Nowak"
+        profile.getPhone() == "+48 600 000 000"
+        profile.getBirthDate().toString() == "1995-03-14"
+        profile.getNationality() == "PL"
+        profile.isComplete() == true
+        and: "a blank phone is a validation error (required on save)"
         when:
-        def profile = PlayerProfile.unclaimed("Jan Kowalski", "jan@example.com", "PL",
-                "token-123", NOW)
+        def profile2 = PlayerProfile.from(PlayerProfile.unclaimed("Jan Kowalski", null, null, null,
+                "token-123-hash", NOW).toData())
+        profile2.updateDetails("Jan Nowak", "  ", null, null, NOW)
+        then:
+        thrown(BusinessException)
+        and: "a malformed phone is a validation error"
+        when:
+        def profile3 = PlayerProfile.from(PlayerProfile.unclaimed("Jan Kowalski", null, null, null,
+                "token-123-hash", NOW).toData())
+        profile3.updateDetails("Jan Nowak", "600-000-000", null, null, NOW)
+        then:
+        thrown(BusinessException)
+        and: "a non-ISO nationality is a validation error"
+        when:
+        def profile4 = PlayerProfile.from(PlayerProfile.unclaimed("Jan Kowalski", null, null, null,
+                "token-123-hash", NOW).toData())
+        profile4.updateDetails("Jan Nowak", "+48 600 000 000", null, "Polska", NOW)
+        then:
+        thrown(BusinessException)
+        and: "a future birthday is a validation error"
+        when:
+        def profile5 = PlayerProfile.from(PlayerProfile.unclaimed("Jan Kowalski", null, null, null,
+                "token-123-hash", NOW).toData())
+        profile5.updateDetails("Jan Nowak", "+48 600 000 000",
+                java.time.LocalDate.parse("2030-01-01"), null, NOW)
+        then:
+        thrown(BusinessException)
+    }
+
+    def "unclaimed profile always carries a claim token hash and no account"() {
+        when:
+        def profile = PlayerProfile.unclaimed("Jan Kowalski", null, null, "PL",
+                "token-123-hash", NOW)
         then:
         profile.getAccountId() == null
-        profile.getClaimToken() == "token-123"
+        profile.getClaimTokenHash() == "token-123-hash"
         profile.getNationality() == "PL"
     }
 

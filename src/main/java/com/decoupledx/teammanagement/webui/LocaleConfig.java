@@ -33,6 +33,12 @@ class LocaleConfig implements WebMvcConfigurer {
     /** One year — the explicit choice is meant to survive browser restarts. */
     private static final Duration COOKIE_MAX_AGE = Duration.ofDays(365);
 
+    private final ProfileCompletionGate profileCompletionGate;
+
+    LocaleConfig(ProfileCompletionGate profileCompletionGate) {
+        this.profileCompletionGate = profileCompletionGate;
+    }
+
     @Bean
     LocaleResolver localeResolver() {
         CookieLocaleResolver resolver = new CookieLocaleResolver("locale") {
@@ -41,13 +47,10 @@ class LocaleConfig implements WebMvcConfigurer {
                 return sanitize(super.resolveLocale(request), request);
             }
         };
-        // No-cookie default function: negotiate the browser's Accept-Language
-        // against the supported set (spring-webmvc's stock function would
-        // either stop at the configured default or ignore the header).
         resolver.setDefaultLocaleFunction(request ->
                 sanitize(request.getLocale(), request));
         resolver.setCookieMaxAge(COOKIE_MAX_AGE);
-        resolver.setCookieHttpOnly(false); // the UI reads it for selector state
+        resolver.setCookieHttpOnly(false);
         return resolver;
     }
 
@@ -76,13 +79,10 @@ class LocaleConfig implements WebMvcConfigurer {
             public boolean preHandle(HttpServletRequest request,
                                      jakarta.servlet.http.HttpServletResponse response, Object handler)
                     throws jakarta.servlet.ServletException {
-                // Sanitize BEFORE setLocale: an out-of-set ?lang= value must
-                // not enter the locale cookie at all (the foreign value would
-                // otherwise render as lang="xx" with fallback copy).
                 String requested = request.getParameter(getParamName());
                 if (requested != null && !SupportedLocales.tags().contains(
-                        requested.toLowerCase(java.util.Locale.ROOT))) {
-                    return true; // drop the switch silently
+                        requested.toLowerCase(Locale.ROOT))) {
+                    return true;
                 }
                 return super.preHandle(request, response, handler);
             }
@@ -94,5 +94,14 @@ class LocaleConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(localeChangeInterceptor());
+        // Post-registration completeness gate (owner feedback #6): the gate
+        // itself exempts the surfaces it must not trap and only ever acts on
+        // the server-rendered UI — never on /api/**.
+        registry.addInterceptor(profileCompletionGate()).addPathPatterns("/**")
+                .excludePathPatterns("/api/**", "/error");
+    }
+
+    ProfileCompletionGate profileCompletionGate() {
+        return profileCompletionGate;
     }
 }

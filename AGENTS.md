@@ -23,6 +23,23 @@ tree, validate locally, and present them for review. On **"go-live"**: do
 the whole delivery chain in order (commit → push → create PR → merge PR →
 check out updated main).
 
+**Input-preservation rule (user-directed, added 2026-11-15):** player input
+is ALWAYS preserved on every page and app — record it when DESIGNING new
+UI, not only when fixing bugs. Concretely: (a) a failed submit re-renders
+the typed draft (flash-carried form state), never the stored state;
+(b) NEVER ship multiple competing forms over the same visible state —
+ONE form per visible state group whose ANY submit persists the FULL
+staged state (profile page: details + photo; team header: name + logo),
+validated ALL-OR-NOTHING so a bad part fails the whole submit. File
+inputs are the inherent exception (browsers cannot repopulate them).
+Integration tests upload into a per-JVM temp dir
+(`PostgresIntegrationSpec`) — never the developer's `uploads/`.
+
+**UI/UX gate (user-directed rule, added 2026-11-14):** for any UI change,
+the ui-designer agent first produces a report/artifact with mockups and the
+owner ACCEPTS it before implementation starts. No template/CSS/flow work
+before that acceptance.
+
 ## Pre-review checklist (end of every change batch)
 
 Before presenting a change batch for review, run and apply findings from:
@@ -39,6 +56,21 @@ Before presenting a change batch for review, run and apply findings from:
    input bounds, untrusted-header honesty documented).
 4. **Then** Spotless + unit + the nearest integration specs + full
    verify — only then present.
+
+## Comment & code-hygiene rules (user-directed, added 2026-11-15 — apply
+during refactoring and when writing ANY new code)
+
+1. **Comments/javadoc are minimized**: javadoc on INTERFACES only (and
+   where a non-obvious shortcut or an owner agreement needs recording —
+   race semantics, aborted-transaction rules, security reasoning are
+   agreements and stay). No narration comments restating the code.
+2. **Always imports over qualified names** (inline `java.util.x.Y` in
+   bodies is a defect); clean up dead code and unused imports during
+   refactoring.
+3. **Prefer named constants** (enum `.name()`, class constants) over
+   hardcoded strings blended into logic (e.g. membership roles).
+4. **Domain services carry the `Service` postfix** (`TeamViewsService`,
+   `TeamPermissionsService`) — aggregates/configs stay as named.
 
 ## Status
 
@@ -104,7 +136,11 @@ source ~/tools/env.sh          # JDK 26 + Maven 3.9.16
 - Exactly one export per module: `adapter/api` (`@NamedInterface("api")`) —
   interface over use cases + DTO views; domain/adapters/internal wiring
   package-private. API views **delegate** to domain logic; api record
-  components use api/shared/JDK types only.
+  components use api/shared/JDK types only. (Agreed 2026-11-14, slice 3.5:)
+  the SHARED kernel has one additional sanctioned export —
+  `shared/web` (`@NamedInterface("web")`, currently `Uploads`) — because
+  upload storage is cross-cutting web infrastructure both the `team` module's
+  REST adapters and the `webui` pages consume; keep that package logic-free.
 - ADR-0001 layout: flat package-private `domain/`, public interfaces only in
   `domain/port`, one `XxxDomainConfig` owns domain beans, adapters own their
   configs, adapters never call adapters, domain returns immutable snapshots
@@ -186,11 +222,70 @@ source ~/tools/env.sh          # JDK 26 + Maven 3.9.16
   SecurityConfig permitAll's it); multipart limits (6MB/12MB) sized so the
   friendly business error wins Tomcat's.
 - Endpoints: `POST /api/teams/{teamId}/logo` (admin), `POST /api/players/me/photo`
-  (own profile), `POST /api/claims` (invite-token claiming; single use, token
-  cleared on success; one profile per account — DB unique indexes decide races
-  as honest 409s; `ACCOUNT_ALREADY_PROFILED` blocks claiming when the account
+  (own profile), `POST /api/players/me/profile` (self-service full edit:
+  name editable, phone REQUIRED + validated — liberal international format
+  `+[0-9][0-9 -]{5,18}[0-9]`, optional birthday ≤ today ≥ 1900, nationality
+  = ISO 3166-1 alpha-2 code — emoji-flag rendering is presentation-only;
+  the WEB form is ONE form whose every submit persists the full visible
+  state (details + optional photo part) with all-or-nothing validation —
+  never a half-applied profile; the REST photo endpoint
+  `/api/players/me/photo` stays separate),
+  `POST /api/claims` (invite-token claiming; single use, token cleared on
+  success; one profile per account — DB unique indexes decide races as
+  honest 409s; `ACCOUNT_ALREADY_PROFILED` blocks claiming when the account
   already provisioned a profile). Claim tokens are issued only in the admin
   registration response.
+- Web UI (slice 3.5 review, approved mockups `docs/ui/slice35-review-mockups.html`):
+  team page = identity header (logo/name/count/creation date) + players GRID
+  (whole card links to `/teams/{teamId}/members/{profileId}`), member-profile
+  view (phone rendered spaced + `tel:` link, admins-only; birthday + current
+  age; cake 🎂 badge on today's birthdays), join page = identity hero only
+  (no roster; uses the UN-GATED `joinPreview`), invite link shows the FULL
+  absolute URL (`app.base-url`, default `http://localhost:8080`) with
+  copy/share (progressive-enhancement JS only, `static/js/app.js`), profile
+  page shows the IdP email READ-ONLY (accounts.email, mirrored from the
+  `email` claim; Keycloak realm sets `registrationEmailAsUsername`), a
+  profile-completeness GATE (`ProfileCompletionGate`) redirects incomplete
+  profiles (no saved phone) to `/players/me` from every non-team page, and
+  admins get an inline team RENAME form (`POST /teams/{id}/rename`; failed
+  submits keep the typed draft).
+- Team pages are TEAMMATES-ONLY (owner rule 2026-11-15): `TeamQueryService.get`
+  rejects non-members (incl. removed former members) with NOT_TEAM_MEMBER —
+  the join hero (`joinPreview`) is the one un-gated team view. Buttons are
+  colored while eligible; grayed + `disabled` only for impossible actions
+  (last-admin Remove/Demote); Remove is filled red, Promote/Replace-logo
+  filled green.
+- One-time invite links + direct member add (owner decisions 2026-11-15,
+  approved mockups §12): the OPEN join link is DEAD — joining happens ONLY
+  through a one-time invite (`team_invites`, `POST /api/teams/{id}/invites`
+  admin-minted → `/join/{token}`, consumed by a single atomic guarded
+  UPDATE; races → honest 409 `INVITE_ALREADY_USED`; revoke = DELETE, no
+  expiry). Token storage is HASH-ONLY — decoupledx-common v0.2.0
+  (`com.decoupledx.common.tokens`, ADR-0003): `OneTimeTokens.generate/hash`
+  + `SingleUseTokenLedger`; the RAW token appears exactly once (minted link
+  / registration response). Claim tokens are hashed too
+  (`player_profiles.claim_token_hash`). Admins add PENDING members
+  (name + phone required, no e-mail) whose claim link binds the claiming
+  account; an account that already has a profile MERGES (their profile
+  wins: memberships re-point, placeholder hard-deleted). Removing a pending
+  member (unclaimed, last team) hard-deletes the profile row. Pending
+  members are visible (clock badge + "Pending" pill on the grid, §13),
+  cannot be PROMOTED (409 `MEMBER_PENDING` until claimed), and their claim
+  links are REGENERABLE per member (`POST /teams/{teamId}/members/
+  {profileId}/claim-link`, admin-gated): minting swaps the stored hash —
+  one active link per pending member, previous link instantly dead; the
+  claim-page deeplink is `/teams/{teamId}/members/{profileId}/claim/
+  {token}` (path names the player; the random token is the sole
+  authority — §13).
+- Manual theme switch (approved mockup §11): server-read `theme` cookie
+  (`auto|light|dark`, 1-year, `HttpOnly=false`, SameSite=Lax) renders
+  `data-theme="light|dark"` on `<html>` at first paint; AUTO renders no
+  attribute — `prefers-color-scheme` stays the fallback, and the
+  `[data-theme]` CSS overrides sit at the END of team.css to win the
+  cascade. `POST /theme` (permitAll, CSRF on, referer-path redirect,
+  out-of-set values silently dropped) is the no-JS path; `static/js/app.js`
+  swaps attribute + cookie in place. Keys: `theme.auto/light/dark`,
+  `nav.theme`.
 - Replacement never deletes the old file on the request path (ops reaps the
   uploads directory).
 

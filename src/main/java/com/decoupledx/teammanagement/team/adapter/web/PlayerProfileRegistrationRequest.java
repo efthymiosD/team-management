@@ -2,13 +2,14 @@ package com.decoupledx.teammanagement.team.adapter.web;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 
 record PlayerProfileRegistrationRequest(
-        // 200 = PlayerProfile.NAME_MAX_LENGTH (synced with the DB check constraint)
         @NotBlank @Size(max = 200) String fullName,
 
-        @Size(max = 2000) String contactDetails,
+        @Size(max = 32) String phone,
 
-        // 100 = PlayerProfile.NATIONALITY_MAX_LENGTH
-        @Size(max = 100) String nationality) {
+        LocalDate birthDate,
+
+        @Size(max = 2) String nationality) {
 }

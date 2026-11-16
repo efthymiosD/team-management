@@ -22,10 +22,11 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 class TeamQueryServiceImpl implements TeamQueryService {
 
-    private final TeamPermissions permissions;
+    private final TeamPermissionsService permissions;
     private final TeamRepository teams;
     private final TeamMembershipRepository memberships;
     private final PlayerProfileRepository profiles;
+    private final TeamViewsService views;
 
     @Override
     public TeamWithMembersInfo get(UUID teamId) {
@@ -34,33 +35,61 @@ class TeamQueryServiceImpl implements TeamQueryService {
             throw new BusinessException(ErrorCode.TEAM_NOT_FOUND);
         }
         List<TeamMembershipDataValue> members = memberships.findByTeam(teamId);
+        // Membership gate (owner feedback 2026-11-15): team pages are a
+        // teammates-only surface — a non-member (including a removed former
+        // member) gets the honest 403, never the roster.
+        UUID viewerProfileId = permissions.viewerProfileIdOrNull();
+        boolean viewerMember = viewerProfileId != null && members.stream()
+                .anyMatch(membership -> membership.profileId().equals(viewerProfileId));
+        if (!viewerMember) {
+            throw new BusinessException(ErrorCode.NOT_TEAM_MEMBER);
+        }
         // Batch the profile lookups — never one query per member (AGENTS.md
-        // performance checklist).
         Map<UUID, PlayerProfileDataValue> profilesById = profiles.findAllByIds(
                 members.stream().map(TeamMembershipDataValue::profileId).toList()).stream()
                 .collect(Collectors.toMap(PlayerProfileDataValue::id, Function.identity()));
+        boolean viewerAdmin = isAdmin(members, viewerProfileId);
 
-        UUID viewerProfileId = permissions.viewerProfileIdOrNull();
-        boolean viewerAdmin = members.stream()
-                .anyMatch(membership -> membership.profileId().equals(viewerProfileId)
-                        && "ADMIN".equals(membership.role()));
-
-        // Privacy rule: a member always sees their own contact details; team
-        // admins see everyone's. Other viewers get names/photos only.
+        // only. The birthday is visible to all teammates (owner decision).
         List<TeamMemberInfo> memberInfos = members.stream()
                 .sorted(Comparator
-                        .comparing((TeamMembershipDataValue m) -> "ADMIN".equals(m.role()) ? 0 : 1)
+                        .comparing((TeamMembershipDataValue m) -> TeamMembershipRole.ADMIN.name().equals(m.role()) ? 0 : 1)
                         .thenComparing(TeamMembershipDataValue::joinedAt))
-                .map(membership -> {
-                    PlayerProfileDataValue profile = profilesById.get(membership.profileId());
-                    boolean own = membership.profileId().equals(viewerProfileId);
-                    String contactDetails = viewerAdmin || own ? profile.contactDetails() : null;
-                    return new TeamMemberInfo(profile.id(), profile.fullName(), contactDetails,
-                            profile.nationality(), profile.photoPath(), "ADMIN".equals(membership.role()),
-                            profile.accountId() != null);
-                })
+                .map(membership -> views.memberInfo(membership,
+                        profilesById.get(membership.profileId()), viewerProfileId, viewerAdmin))
                 .toList();
-        return new TeamWithMembersInfo(team.id(), team.name(), team.logoPath(), memberInfos);
+        return new TeamWithMembersInfo(team.id(), team.name(), team.logoPath(), team.createdAt(),
+                viewerAdmin, memberInfos);
+    }
+
+    @Override
+    public TeamInfo joinPreview(UUID teamId) {
+        TeamDataValue team = teams.find(teamId);
+        if (team == null) {
+            throw new BusinessException(ErrorCode.TEAM_NOT_FOUND);
+        }
+        return new TeamInfo(team.id(), team.name(), team.logoPath());
+    }
+
+    @Override
+    public TeamMemberInfo memberProfile(UUID teamId, UUID profileId) {        TeamDataValue team = teams.find(teamId);
+        if (team == null) {
+            throw new BusinessException(ErrorCode.TEAM_NOT_FOUND);
+        }
+        List<TeamMembershipDataValue> members = memberships.findByTeam(teamId);
+        UUID viewerProfileId = permissions.viewerProfileIdOrNull();
+        if (viewerProfileId == null || members.stream()
+                .noneMatch(membership -> membership.profileId().equals(viewerProfileId))) {
+            // Member profiles are a teammates-only surface (owner decision).
+            throw new BusinessException(ErrorCode.NOT_TEAM_MEMBER);
+        }
+        TeamMembershipDataValue membership = members.stream()
+                .filter(candidate -> candidate.profileId().equals(profileId))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        PlayerProfileDataValue profile = profiles.find(profileId);
+        return views.memberInfo(membership, profile, viewerProfileId,
+                isAdmin(members, viewerProfileId));
     }
 
     @Override
@@ -76,8 +105,14 @@ class TeamQueryServiceImpl implements TeamQueryService {
                 .collect(Collectors.toMap(TeamDataValue::id, Function.identity()));
         return myMemberships.stream()
                 .map(membership -> teamsById.get(membership.teamId()))
-                .filter(team -> team != null) // team deleted while we read
+                .filter(team -> team != null)
                 .map(team -> new TeamInfo(team.id(), team.name(), team.logoPath()))
                 .toList();
+    }
+
+    private static boolean isAdmin(List<TeamMembershipDataValue> members, UUID viewerProfileId) {
+        return viewerProfileId != null && members.stream()
+                .anyMatch(membership -> membership.profileId().equals(viewerProfileId)
+                        && TeamMembershipRole.ADMIN.name().equals(membership.role()));
     }
 }

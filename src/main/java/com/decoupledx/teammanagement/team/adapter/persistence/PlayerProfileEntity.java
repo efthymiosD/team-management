@@ -1,11 +1,11 @@
 package com.decoupledx.teammanagement.team.adapter.persistence;
 import com.decoupledx.teammanagement.team.domain.port.PlayerProfileDataValue;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -24,8 +24,11 @@ class PlayerProfileEntity {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
-    @Column(name = "contact_details")
-    private String contactDetails;
+    @Column(nullable = true)
+    private String phone;
+
+    @Column(name = "birth_date", nullable = true)
+    private LocalDate birthDate;
 
     @Column(nullable = true)
     private String nationality;
@@ -37,9 +40,9 @@ class PlayerProfileEntity {
     @Setter
     private UUID accountId;
 
-    @Column(name = "claim_token")
+    @Column(name = "claim_token_hash")
     @Setter
-    private String claimToken;
+    private String claimTokenHash;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -53,22 +56,24 @@ class PlayerProfileEntity {
     PlayerProfileEntity(PlayerProfileDataValue data) {
         this.id = data.id();
         this.fullName = data.fullName();
-        this.contactDetails = data.contactDetails();
+        this.phone = data.phone();
+        this.birthDate = data.birthDate();
         this.nationality = data.nationality();
         this.photoPath = data.photoPath();
         this.accountId = data.accountId();
-        this.claimToken = data.claimToken();
+        this.claimTokenHash = data.claimTokenHash();
         this.createdAt = data.createdAt();
         this.updatedAt = data.updatedAt();
     }
 
     void syncFrom(PlayerProfileDataValue data) {
         this.fullName = data.fullName();
-        this.contactDetails = data.contactDetails();
+        this.phone = data.phone();
+        this.birthDate = data.birthDate();
         this.nationality = data.nationality();
         this.photoPath = data.photoPath();
         this.accountId = data.accountId();
-        this.claimToken = data.claimToken();
+        this.claimTokenHash = data.claimTokenHash();
         this.updatedAt = data.updatedAt();
     }
 
@@ -76,11 +81,12 @@ class PlayerProfileEntity {
         return PlayerProfileDataValue.builder()
                 .id(id)
                 .fullName(fullName)
-                .contactDetails(contactDetails)
+                .phone(phone)
+                .birthDate(birthDate)
                 .nationality(nationality)
                 .photoPath(photoPath)
                 .accountId(accountId)
-                .claimToken(claimToken)
+                .claimTokenHash(claimTokenHash)
                 .createdAt(createdAt)
                 .updatedAt(updatedAt)
                 .version(version)

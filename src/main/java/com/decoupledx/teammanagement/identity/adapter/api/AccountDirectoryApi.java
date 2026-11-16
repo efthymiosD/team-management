@@ -15,6 +15,12 @@ public interface AccountDirectoryApi {
     Map<UUID, String> displayNames(Collection<AccountId> accounts);
 
     /**
+     * E-mail addresses (mirrored from the IdP at login) keyed by internal
+     * account id. Absent entries mean the address was not captured.
+     */
+    Map<UUID, String> emails(Collection<AccountId> accounts);
+
+    /**
      * All provisioned accounts (internal id + display name), most-recently
      * created first. Used by admin UIs to pick an account (e.g. for
      * profile linking).

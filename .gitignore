@@ -32,3 +32,4 @@ jwt-private.pem
 logs/
 uploads/
 /docs/tmp/
+/docs/ui/

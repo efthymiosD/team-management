@@ -41,6 +41,16 @@ class CurrentUserAdvice {
                 .getLocale().getLanguage();
     }
 
+    /**
+     * The manual theme choice for the current request (null = AUTO): read
+     * from the "theme" cookie so the first paint already carries the
+     * data-theme attribute (no wrong-theme flash — approved mockup §11).
+     */
+    @ModelAttribute("theme")
+    String theme(jakarta.servlet.http.HttpServletRequest request) {
+        return ThemeController.currentTheme(request);
+    }
+
     private String accountIdOrNull() {
         try {
             return accounts.currentAccountId().value();

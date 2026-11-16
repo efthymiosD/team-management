@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${locale}" th:data-theme="${theme}">
+<head th:replace="~{fragments/navigation :: head(#{claim.heading})}"></head>
+<body>
+<div th:replace="~{fragments/navigation :: navigation}"></div>
+<main class="container" id="main">
+  <div class="flash" th:if="${message != null}" role="status" th:text="${message}"></div>
+  <div class="flash flash-error" th:if="${error != null}" role="alert" th:text="${error}"></div>
+
+  <!-- Approved mockup §12.2: the pending member's claim hero — team identity
+       + the identity hint the admin entered; claiming binds the acting
+       account (single use). -->
+  <section class="card card-narrow join-hero">
+    <img class="join-logo" th:if="${preview.teamLogoPath != null}" th:src="${preview.teamLogoPath}" alt="">
+    <span class="join-logo" th:if="${preview.teamLogoPath == null}" aria-hidden="true"
+          th:text="${teamInitial}">A</span>
+    <h1 th:text="${preview.teamName}">Team name</h1>
+    <p class="muted" th:text="#{claim.heading}">This profile was created for you.</p>
+
+    <dl class="detail-list" style="text-align:left; margin:1rem 0;">
+      <div>
+        <dt th:text="#{profile.name}">Player name</dt>
+        <dd th:text="${preview.fullName}">Name</dd>
+      </div>
+      <div th:if="${preview.phone != null}">
+        <dt th:text="#{profile.phone}">Phone</dt>
+        <dd th:text="${phoneDisplay}">+48 600 123 456</dd>
+      </div>
+    </dl>
+    <p class="hint" th:text="#{claim.emailNote}">Your e-mail comes from the account you sign in with.</p>
+
+    <form th:action="@{/teams/{teamId}/members/{profileId}/claim/{token}(teamId=${teamId}, profileId=${profileId}, token=${token})}"
+          method="post">
+      <button type="submit" class="btn btn-primary btn-lg btn-block"
+              th:text="#{claim.button}">Claim this profile</button>
+    </form>
+  </section>
+</main>
+</body>
+</html>

@@ -16,7 +16,7 @@ import lombok.RequiredArgsConstructor;
  * account. The last-admin invariant itself lives in the membership service.
  */
 @RequiredArgsConstructor
-class TeamPermissions {
+class TeamPermissionsService {
 
     private final CurrentAccountApi accounts;
     private final PlayerProfileRepository profiles;
@@ -38,7 +38,7 @@ class TeamPermissions {
         if (mine == null) {
             throw new BusinessException(ErrorCode.NOT_TEAM_MEMBER);
         }
-        if (!"ADMIN".equals(mine.role())) {
+        if (!TeamMembershipRole.ADMIN.name().equals(mine.role())) {
             throw new BusinessException(ErrorCode.NOT_TEAM_ADMIN);
         }
     }

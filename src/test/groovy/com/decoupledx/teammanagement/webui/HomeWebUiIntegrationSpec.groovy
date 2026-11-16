@@ -4,6 +4,7 @@ import com.decoupledx.teammanagement.testinfra.JwtSupport
 import com.decoupledx.teammanagement.testinfra.PostgresIntegrationSpec
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
 import org.springframework.test.web.servlet.MockMvc
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -27,7 +28,20 @@ class HomeWebUiIntegrationSpec extends PostgresIntegrationSpec {
     MockMvc mvc
 
     def cleanup() {
-        truncate("team_memberships", "player_profiles", "teams")
+        truncate("team_invites", "team_memberships", "player_profiles", "teams")
+    }
+
+    /**
+     * The profile-completeness gate (post-registration flow) redirects
+     * incomplete profiles away from non-team pages — every authenticated
+     * scenario completes the required info first.
+     */
+    void completeProfile(String account) {
+        mvc.perform(post("/players/me/profile").with(JwtSupport.account(account))
+                .with(SecurityMockMvcRequestPostProcessors.csrf())
+                .param("fullName", "Player")
+                .param("phone", "+48 600 000 000"))
+                .andExpect(status().is3xxRedirection())
     }
 
     def "anonymous home shows the login call to action"() {
@@ -41,6 +55,7 @@ class HomeWebUiIntegrationSpec extends PostgresIntegrationSpec {
 
     def "authenticated home lists the member's teams"() {
         given:
+        completeProfile("creator-1")
         mvc.perform(post("/api/teams").with(JwtSupport.account("creator-1"))
                 .contentType("application/json")
                 .content('{"name":"FC Dynamo"}')).andExpect(status().isCreated())
@@ -55,6 +70,8 @@ class HomeWebUiIntegrationSpec extends PostgresIntegrationSpec {
     }
 
     def "create-team form posts through the team module API (flash message on the redirect)"() {
+        given:
+        completeProfile("creator-1")
         when:
         mvc.perform(post("/teams").with(JwtSupport.account("creator-1"))
                 .param("name", "Form United"))
@@ -69,18 +86,29 @@ class HomeWebUiIntegrationSpec extends PostgresIntegrationSpec {
 
     def "duplicate team name surfaces the translated business error (PL flash copy)"() {
         given:
+        completeProfile("creator-1")
         mvc.perform(post("/teams").with(JwtSupport.account("creator-1"))
                 .param("name", "Form United"))
-        expect:
-        mvc.perform(post("/teams").with(JwtSupport.account("creator-1"))
+        and: "player input is always preserved — the typed name renders back"
+        def post = mvc.perform(post("/teams").with(JwtSupport.account("creator-1"))
                 .param("name", "Form United")
                 .locale(java.util.Locale.forLanguageTag("pl")))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("error",
                         "Drużyna o tej nazwie już istnieje"))
+                .andReturn()
+        // Flash maps travel via the HTTP session (like the real browser's
+        // cookie) — MockMvc must carry the same session across the redirect.
+        def page = mvc.perform(get("/").with(JwtSupport.account("creator-1"))
+                .session(post.request.session))
+                .andExpect(status().isOk())
+                .andReturn().response.contentAsString
+        page.contains('value="Form United"')
     }
 
     def "home honors the ?lang= switch (Polish locale contract)"() {
+        given:
+        completeProfile("creator-1")
         expect:
         def page = mvc.perform(get("/").queryParam("lang", "pl")
                 .with(JwtSupport.account("creator-1")))
@@ -92,6 +120,8 @@ class HomeWebUiIntegrationSpec extends PostgresIntegrationSpec {
     }
 
     def "out-of-set locales are silently dropped (default language, no lang=xx leak)"() {
+        given:
+        completeProfile("creator-1")
         expect:
         def page = mvc.perform(get("/").queryParam("lang", "xx")
                 .with(JwtSupport.account("creator-1")))
